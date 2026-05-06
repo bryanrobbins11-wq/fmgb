@@ -1,1099 +1,745 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
 <title>Find My Ball</title>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet"/>
 <style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  :root {
-    --green-deep:#0f1a12; --green-mid:#1a2e1c; --green-border:#2a3f2c;
-    --green-bright:#4ade80; --green-soft:#86efac;
-    --yellow:#fbbf24; --red:#f87171; --blue:#60a5fa; --purple:#c084fc;
-    --smart:#f59e0b; --landmark:#38bdf8;
-    --muted:#6b7280; --text:#e2e8f0; --text-dim:#9ca3af;
-  }
-  html,body{height:100%;background:var(--green-deep);color:var(--text);font-family:'DM Sans',sans-serif;overflow:hidden;}
-  #app{display:flex;flex-direction:column;height:100vh;max-width:480px;margin:0 auto;position:relative;}
-
-  /* Header */
-  #header{background:linear-gradient(135deg,#1a2e1c,#0f1a12);padding:10px 14px 8px;border-bottom:1px solid var(--green-border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;z-index:10;}
-  .logo-row{display:flex;align-items:center;gap:9px;}
-  .logo-icon{font-size:24px;}
-  .logo-title{font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:3px;color:var(--green-soft);line-height:1;}
-  .logo-sub{font-size:8px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-top:1px;}
-  .header-right{display:flex;align-items:center;gap:7px;}
-  #phase-badge{font-size:9px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;padding:3px 9px;border-radius:99px;border:1px solid var(--green-border);color:var(--muted);transition:all .3s;}
-  #phase-badge.active{border-color:var(--green-bright);color:var(--green-bright);}
-  #phase-badge.landmark-mode{border-color:var(--landmark);color:var(--landmark);}
-  .hdr-btn{font-size:11px;font-weight:600;background:var(--green-mid);border:1px solid var(--green-border);border-radius:8px;padding:5px 9px;color:var(--text-dim);cursor:pointer;font-family:'DM Sans',sans-serif;}
-  .hdr-btn:hover{border-color:var(--green-bright);color:var(--green-bright);}
-
-  /* Map */
-  #map-wrap{position:relative;flex-shrink:0;height:240px;border-bottom:1px solid var(--green-border);transition:height .4s ease;}
-  #map-wrap.expanded{height:380px;}
-  #map-wrap.landmark-selecting{cursor:crosshair;}
-  #map-wrap.landmark-selecting #map{cursor:crosshair!important;}
-  #map{width:100%;height:100%;}
-  #map-expand-btn{position:absolute;bottom:8px;right:8px;z-index:999;background:rgba(15,26,18,.88);border:1px solid var(--green-border);border-radius:7px;padding:5px 9px;font-size:10px;font-weight:600;color:var(--text-dim);cursor:pointer;backdrop-filter:blur(4px);font-family:'DM Sans',sans-serif;}
-  #map-expand-btn:hover{color:var(--green-bright);border-color:var(--green-bright);}
-  #map-status{position:absolute;top:8px;left:50%;transform:translateX(-50%);z-index:999;background:rgba(15,26,18,.9);border:1px solid var(--green-border);border-radius:99px;padding:4px 12px;font-size:10px;font-weight:600;color:var(--text-dim);backdrop-filter:blur(4px);white-space:nowrap;pointer-events:none;transition:all .3s;}
-  #map-status.gps-ok{color:var(--green-bright);border-color:var(--green-bright);}
-  #map-status.gps-err{color:var(--red);border-color:var(--red);}
-  #map-status.landmark{color:var(--landmark);border-color:var(--landmark);}
-
-  /* Landmark tap overlay hint */
-  #landmark-tap-hint{position:absolute;bottom:36px;left:50%;transform:translateX(-50%);z-index:999;background:rgba(56,189,248,.15);border:1px solid var(--landmark);border-radius:99px;padding:5px 14px;font-size:11px;font-weight:600;color:var(--landmark);backdrop-filter:blur(4px);white-space:nowrap;display:none;pointer-events:none;}
-
-  /* Scroll */
-  #scroll-area{flex:1;overflow-y:auto;padding:12px 12px 28px;display:flex;flex-direction:column;gap:10px;}
-  #scroll-area::-webkit-scrollbar{width:3px;}
-  #scroll-area::-webkit-scrollbar-thumb{background:var(--green-border);border-radius:99px;}
-
-  /* Cards */
-  .card{background:var(--green-mid);border:1px solid var(--green-border);border-radius:13px;padding:13px;}
-  .section-label{font-size:9px;font-weight:600;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:8px;}
-
-  /* Club grid */
-  #club-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
-  .club-btn{padding:7px 0;font-size:10px;font-weight:600;background:var(--green-deep);border:1px solid var(--green-border);border-radius:5px;color:var(--muted);cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s;}
-  .club-btn.active{background:#166534;border-color:var(--green-bright);color:var(--green-bright);}
-  .club-btn.has-data{border-color:#854d0e;color:var(--yellow);}
-  .club-btn.has-data.active{background:#166534;border-color:var(--green-bright);color:var(--green-bright);}
-
-  /* Dist */
-  .dist-row{display:flex;align-items:center;gap:8px;justify-content:center;}
-  .nudge-btn{width:44px;height:44px;font-size:16px;background:var(--green-deep);border:1px solid var(--green-border);border-radius:9px;color:var(--green-soft);cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s;}
-  .nudge-btn:hover{border-color:var(--green-bright);}
-  #dist-display{font-family:'Bebas Neue',sans-serif;font-size:46px;color:var(--green-soft);letter-spacing:2px;min-width:80px;text-align:center;line-height:1;}
-  #learned-dist-hint{font-size:11px;color:var(--smart);text-align:center;margin-top:3px;min-height:16px;font-style:italic;}
-
-  /* Toggles */
-  .toggle-row{display:flex;gap:5px;}
-  .toggle-btn{flex:1;padding:8px 3px;font-size:11px;font-weight:500;background:var(--green-deep);border:1px solid var(--green-border);border-radius:7px;color:var(--muted);cursor:pointer;font-family:'DM Sans',sans-serif;text-align:center;transition:all .15s;}
-  .toggle-btn.active{background:#166534;border-color:var(--green-bright);color:var(--green-bright);}
-
-  /* GPS / Go */
-  #gps-btn{width:100%;padding:12px;font-size:13px;font-weight:600;background:var(--green-deep);border:1px solid var(--green-bright);border-radius:9px;color:var(--green-bright);cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .2s;}
-  #gps-msg{font-size:11px;text-align:center;padding:5px 0;color:var(--yellow);min-height:20px;}
-  #gps-msg.ok{color:var(--green-bright);}
-  #gps-msg.err{color:var(--red);}
-  #go-btn{width:100%;padding:15px;font-size:22px;font-weight:700;font-family:'Bebas Neue',sans-serif;letter-spacing:3px;background:linear-gradient(135deg,#166534,#15803d);border:none;border-radius:13px;color:#fff;cursor:pointer;box-shadow:0 4px 24px rgba(74,222,128,.2);transition:all .2s;}
-  #go-btn:disabled{background:var(--green-mid);color:#4b5563;box-shadow:none;cursor:not-allowed;}
-
-  /* ── LANDMARK CARD ── */
-  #landmark-card{border-color:#1e3a4a;}
-  .landmark-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
-  .landmark-title{font-size:12px;font-weight:600;color:var(--landmark);}
-  #landmark-clear-btn{font-size:10px;color:var(--muted);background:none;border:1px solid var(--green-border);border-radius:6px;padding:3px 8px;cursor:pointer;font-family:'DM Sans',sans-serif;}
-  #landmark-clear-btn:hover{border-color:var(--red);color:var(--red);}
-
-  /* Method tabs */
-  .lm-tabs{display:flex;gap:6px;margin-bottom:10px;}
-  .lm-tab{flex:1;padding:8px;font-size:11px;font-weight:600;background:var(--green-deep);border:1px solid var(--green-border);border-radius:8px;color:var(--muted);cursor:pointer;font-family:'DM Sans',sans-serif;text-align:center;transition:all .15s;}
-  .lm-tab.active{background:rgba(56,189,248,.12);border-color:var(--landmark);color:var(--landmark);}
-
-  /* Map tap method */
-  #lm-map-section{display:none;}
-  #lm-map-section.visible{display:block;}
-  #lm-tap-btn{width:100%;padding:10px;font-size:12px;font-weight:600;background:rgba(56,189,248,.08);border:1px solid var(--landmark);border-radius:8px;color:var(--landmark);cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .2s;margin-bottom:6px;}
-  #lm-tap-btn:hover{background:rgba(56,189,248,.16);}
-  #lm-tap-btn.active{background:rgba(56,189,248,.2);animation:pulse-border 1.5s infinite;}
-  @keyframes pulse-border{0%,100%{border-color:var(--landmark);}50%{border-color:#7dd3fc;}}
-  #lm-tap-status{font-size:10px;color:var(--muted);text-align:center;min-height:16px;}
-  #lm-tap-status.set{color:var(--landmark);}
-
-  /* Compass method */
-  #lm-compass-section{display:none;}
-  #lm-compass-section.visible{display:block;}
-  #compass-wrap{display:flex;flex-direction:column;align-items:center;gap:8px;}
-  #compass-ring{width:110px;height:110px;border-radius:50%;background:var(--green-deep);border:2px solid var(--green-border);position:relative;margin:4px auto;}
-  #compass-needle{position:absolute;top:50%;left:50%;width:3px;height:40px;background:linear-gradient(to bottom,var(--landmark) 50%,#374151 50%);transform-origin:bottom center;transform:translateX(-50%) translateY(-100%) rotate(0deg);border-radius:3px 3px 0 0;transition:transform .2s;}
-  .compass-n{position:absolute;top:4px;left:50%;transform:translateX(-50%);font-size:10px;font-weight:700;color:var(--landmark);}
-  .compass-s{position:absolute;bottom:4px;left:50%;transform:translateX(-50%);font-size:9px;color:var(--muted);}
-  .compass-e{position:absolute;right:5px;top:50%;transform:translateY(-50%);font-size:9px;color:var(--muted);}
-  .compass-w{position:absolute;left:5px;top:50%;transform:translateY(-50%);font-size:9px;color:var(--muted);}
-  #compass-bearing-display{font-family:'Bebas Neue',sans-serif;font-size:36px;color:var(--landmark);letter-spacing:2px;text-align:center;line-height:1;}
-  #compass-bearing-label{font-size:9px;color:var(--muted);text-align:center;letter-spacing:2px;text-transform:uppercase;}
-  #compass-btn{width:100%;padding:10px;font-size:12px;font-weight:600;background:rgba(56,189,248,.08);border:1px solid var(--landmark);border-radius:8px;color:var(--landmark);cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .2s;margin-top:6px;}
-  #compass-btn:hover{background:rgba(56,189,248,.16);}
-  #compass-status{font-size:10px;text-align:center;color:var(--muted);min-height:16px;margin-top:4px;}
-  #compass-status.set{color:var(--landmark);}
-  #compass-err{font-size:10px;text-align:center;color:var(--red);min-height:16px;}
-
-  /* Landmark set indicator */
-  #landmark-set-row{display:flex;align-items:center;gap:8px;background:rgba(56,189,248,.08);border:1px solid var(--landmark);border-radius:8px;padding:8px 10px;margin-top:4px;}
-  #landmark-set-row{display:none;}
-  #landmark-set-row.visible{display:flex;}
-  #landmark-set-icon{font-size:18px;}
-  #landmark-set-info{flex:1;font-size:11px;color:var(--landmark);}
-  #landmark-set-label{font-size:9px;color:var(--muted);}
-
-  /* Smart Zone toggle */
-  #smart-zone-row{display:flex;align-items:center;justify-content:space-between;gap:10px;}
-  #smart-zone-info{flex:1;}
-  #smart-zone-title{font-size:12px;font-weight:600;color:var(--smart);}
-  #smart-zone-desc{font-size:10px;color:var(--muted);margin-top:2px;}
-  #smart-zone-toggle{position:relative;width:46px;height:26px;flex-shrink:0;}
-  #smart-zone-toggle input{opacity:0;width:0;height:0;}
-  .toggle-slider{position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:var(--green-deep);border:1px solid var(--green-border);border-radius:99px;transition:.3s;}
-  .toggle-slider:before{position:absolute;content:"";height:18px;width:18px;left:3px;bottom:3px;background:var(--muted);border-radius:50%;transition:.3s;}
-  #smart-zone-toggle input:checked + .toggle-slider{background:rgba(245,158,11,.15);border-color:var(--smart);}
-  #smart-zone-toggle input:checked + .toggle-slider:before{transform:translateX(20px);background:var(--smart);}
-  #smart-zone-unavail{font-size:10px;color:var(--muted);font-style:italic;margin-top:4px;}
-
-  /* Tracking */
-  #track-card{display:flex;flex-direction:column;align-items:center;gap:5px;}
-  #track-label{font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;}
-  #track-big{font-family:'Bebas Neue',sans-serif;font-size:80px;color:var(--green-soft);letter-spacing:4px;line-height:1;transition:color .3s;}
-  #track-unit{font-size:11px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-top:-4px;}
-  .bar-wrap{width:100%;margin-top:10px;}
-  .bar-bg{background:var(--green-deep);border-radius:99px;height:11px;width:100%;position:relative;overflow:visible;border:1px solid var(--green-border);}
-  .bar-overflow{width:100%;height:100%;overflow:hidden;border-radius:99px;position:relative;}
-  #bar-fill{height:100%;border-radius:99px;transition:width .5s ease,background .3s;width:0%;background:var(--yellow);}
-  .zone-marker{position:absolute;top:-3px;width:2px;height:17px;background:rgba(255,255,255,.45);pointer-events:none;}
-  .smart-zone-marker{position:absolute;top:-3px;width:2px;height:17px;background:var(--smart);opacity:.7;pointer-events:none;}
-  .landmark-zone-marker{position:absolute;top:-4px;width:3px;height:19px;background:var(--landmark);opacity:.9;pointer-events:none;border-radius:1px;}
-  .bar-labels{display:flex;justify-content:space-between;font-size:9px;color:var(--muted);margin-top:4px;padding:0 2px;}
-  #status-badge{margin-top:7px;padding:6px 16px;border-radius:99px;border:1px solid var(--muted);font-size:11px;font-weight:600;letter-spacing:.5px;color:var(--muted);transition:all .3s;}
-  #status-badge.in-zone{color:var(--green-bright);border-color:var(--green-bright);}
-  #status-badge.overshoot{color:var(--red);border-color:var(--red);}
-  #status-badge.undershoot{color:var(--yellow);border-color:var(--yellow);}
-
-  /* Zone info */
-  .zone-row{display:flex;gap:8px;}
-  .zone-stat{flex:1;background:var(--green-deep);border-radius:9px;padding:9px;text-align:center;}
-  .zone-stat-num{font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--green-soft);letter-spacing:1px;}
-  .zone-stat-num.smart{color:var(--smart);}
-  .zone-stat-num.landmark{color:var(--landmark);}
-  .zone-stat-label{font-size:8px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;}
-  #zone-hint{font-size:11px;color:var(--text-dim);text-align:center;font-style:italic;}
-
-  /* Landmark tracking badge */
-  #landmark-tracking-badge{display:none;align-items:center;gap:8px;background:rgba(56,189,248,.1);border:1px solid var(--landmark);border-radius:9px;padding:9px 12px;}
-  #landmark-tracking-badge.visible{display:flex;}
-  #ltb-icon{font-size:16px;}
-  #ltb-info{flex:1;}
-  #ltb-title{font-size:11px;font-weight:600;color:var(--landmark);}
-  #ltb-desc{font-size:10px;color:var(--muted);margin-top:1px;}
-
-  /* Found ball */
-  #found-card{border-color:#854d0e;}
-  #found-gps-btn{width:100%;padding:12px;font-size:13px;font-weight:600;background:rgba(245,158,11,.1);border:1px solid var(--smart);border-radius:9px;color:var(--smart);cursor:pointer;font-family:'DM Sans',sans-serif;margin-bottom:8px;transition:all .2s;}
-  #found-gps-btn:hover{background:rgba(245,158,11,.18);}
-  #found-manual-row{display:flex;gap:6px;align-items:center;}
-  #found-manual-dist{flex:1;padding:9px 10px;font-size:13px;background:var(--green-deep);border:1px solid var(--green-border);border-radius:8px;color:var(--text);font-family:'DM Sans',sans-serif;}
-  #found-manual-dist:focus{outline:none;border-color:var(--smart);}
-  #found-direction-row{display:flex;gap:5px;margin-top:6px;}
-  .found-dir-btn{flex:1;padding:7px 3px;font-size:11px;font-weight:500;background:var(--green-deep);border:1px solid var(--green-border);border-radius:7px;color:var(--muted);cursor:pointer;font-family:'DM Sans',sans-serif;text-align:center;transition:all .15s;}
-  .found-dir-btn.active{background:rgba(245,158,11,.15);border-color:var(--smart);color:var(--smart);}
-  #found-save-btn{width:100%;margin-top:8px;padding:11px;font-size:13px;font-weight:600;background:rgba(245,158,11,.12);border:1px solid var(--smart);border-radius:9px;color:var(--smart);cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .2s;}
-  #found-save-btn:hover{background:rgba(245,158,11,.22);}
-  #found-msg{font-size:11px;text-align:center;color:var(--green-bright);min-height:18px;margin-top:4px;}
-
-  /* Pills */
-  .info-row{display:flex;gap:5px;flex-wrap:wrap;justify-content:center;}
-  .pill{padding:3px 10px;background:var(--green-mid);border:1px solid var(--green-border);border-radius:99px;font-size:10px;color:var(--text-dim);}
-  .pill.landmark{border-color:#1e3a4a;color:var(--landmark);}
-
-  #reset-btn{width:100%;padding:12px;font-size:13px;font-weight:600;background:transparent;border:1px solid #374151;border-radius:9px;color:var(--text-dim);cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .2s;}
-  #reset-btn:hover{border-color:var(--green-border);color:var(--text);}
-
-  /* History */
-  #history-panel{display:none;flex-direction:column;gap:10px;}
-  #history-panel.visible{display:flex;}
-  .history-club-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
-  .history-club-name{font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--green-soft);letter-spacing:2px;}
-  .history-club-count{font-size:10px;color:var(--muted);}
-  .history-stats-row{display:flex;gap:6px;margin-bottom:6px;}
-  .hstat{flex:1;background:var(--green-deep);border-radius:8px;padding:8px;text-align:center;}
-  .hstat-num{font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:1px;}
-  .hstat-num.pos{color:var(--green-soft);}
-  .hstat-num.warn{color:var(--smart);}
-  .hstat-label{font-size:8px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;}
-  .history-shots{display:flex;flex-direction:column;gap:4px;}
-  .history-shot-row{display:flex;align-items:center;gap:6px;background:var(--green-deep);border-radius:7px;padding:7px 9px;font-size:11px;color:var(--text-dim);}
-  .shot-date{font-size:9px;color:var(--muted);min-width:52px;}
-  .shot-detail{flex:1;}
-  .shot-delta{font-size:10px;font-weight:600;}
-  .shot-delta.pos{color:var(--green-bright);}
-  .shot-delta.neg{color:var(--red);}
-  .shot-delete{background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:0 2px;}
-  .shot-delete:hover{color:var(--red);}
-  #history-empty{font-size:13px;color:var(--muted);text-align:center;padding:30px 0;font-style:italic;}
-  #clear-all-btn{width:100%;padding:11px;font-size:12px;font-weight:600;background:transparent;border:1px solid #374151;border-radius:9px;color:#6b7280;cursor:pointer;font-family:'DM Sans',sans-serif;}
-  #clear-all-btn:hover{border-color:var(--red);color:var(--red);}
-
-  /* Panel visibility */
-  #setup-panel,#tracking-panel{display:flex;flex-direction:column;gap:10px;}
-  .hidden-panel{display:none!important;}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --gd:#0f1a12;--gm:#1a2e1c;--gb:#2a3f2c;
+  --bright:#4ade80;--soft:#86efac;
+  --yellow:#fbbf24;--red:#f87171;
+  --smart:#f59e0b;--lm:#38bdf8;--hole:#a78bfa;
+  --muted:#6b7280;--text:#e2e8f0;--dim:#9ca3af;
+}
+html,body{height:100%;background:var(--gd);color:var(--text);font-family:'DM Sans',sans-serif;overflow:hidden;}
+#app{display:flex;flex-direction:column;height:100vh;max-width:480px;margin:0 auto;}
+#hdr{background:linear-gradient(135deg,#1a2e1c,#0f1a12);padding:9px 13px 7px;border-bottom:1px solid var(--gb);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;z-index:10;}
+.logo-row{display:flex;align-items:center;gap:8px;}
+.logo-icon{font-size:22px;}
+.logo-title{font-family:'Bebas Neue',sans-serif;font-size:19px;letter-spacing:3px;color:var(--soft);line-height:1;}
+.logo-sub{font-size:8px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-top:1px;}
+.hdr-r{display:flex;align-items:center;gap:6px;}
+#phase-badge{font-size:9px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;padding:3px 8px;border-radius:99px;border:1px solid var(--gb);color:var(--muted);transition:all .3s;}
+#phase-badge.active{border-color:var(--bright);color:var(--bright);}
+.hbtn{font-size:10px;font-weight:600;background:var(--gm);border:1px solid var(--gb);border-radius:7px;padding:4px 8px;color:var(--dim);cursor:pointer;font-family:'DM Sans',sans-serif;white-space:nowrap;}
+.hbtn:hover,.hbtn.on{border-color:var(--bright);color:var(--bright);background:rgba(74,222,128,.08);}
+#course-bar{background:var(--gm);border-bottom:1px solid var(--gb);padding:6px 13px;display:flex;align-items:center;gap:8px;flex-shrink:0;min-height:36px;}
+#course-name{flex:1;font-size:11px;font-weight:600;color:var(--soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+#course-name.dim{color:var(--muted);font-weight:400;}
+#hole-sel{display:flex;align-items:center;gap:4px;}
+#hole-lbl{font-size:8px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;}
+.h-arr{width:24px;height:24px;font-size:13px;background:var(--gd);border:1px solid var(--gb);border-radius:5px;color:var(--soft);cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.h-arr:hover{border-color:var(--bright);}
+#hole-num{font-family:'Bebas Neue',sans-serif;font-size:21px;color:var(--soft);letter-spacing:1px;min-width:26px;text-align:center;line-height:1;}
+#hole-info{font-size:9px;color:var(--muted);text-align:center;min-width:40px;}
+#next-hole-btn{font-size:10px;font-weight:600;background:rgba(74,222,128,.08);border:1px solid var(--bright);border-radius:6px;padding:3px 8px;color:var(--bright);cursor:pointer;font-family:'DM Sans',sans-serif;display:none;white-space:nowrap;}
+#map-wrap{position:relative;flex-shrink:0;height:220px;border-bottom:1px solid var(--gb);transition:height .4s ease;}
+#map-wrap.expanded{height:360px;}
+#map{width:100%;height:100%;}
+#map-expand-btn{position:absolute;bottom:8px;right:8px;z-index:999;background:rgba(15,26,18,.88);border:1px solid var(--gb);border-radius:6px;padding:4px 8px;font-size:10px;font-weight:600;color:var(--dim);cursor:pointer;backdrop-filter:blur(4px);font-family:'DM Sans',sans-serif;}
+#map-expand-btn:hover{color:var(--bright);border-color:var(--bright);}
+#map-hint{position:absolute;bottom:36px;left:50%;transform:translateX(-50%);z-index:999;background:rgba(15,26,18,.9);border:1px solid var(--hole);border-radius:99px;padding:4px 12px;font-size:10px;font-weight:600;color:var(--hole);backdrop-filter:blur(4px);white-space:nowrap;display:none;pointer-events:none;}
+#map-status{position:absolute;top:8px;left:50%;transform:translateX(-50%);z-index:999;background:rgba(15,26,18,.9);border:1px solid var(--gb);border-radius:99px;padding:3px 11px;font-size:10px;font-weight:600;color:var(--dim);backdrop-filter:blur(4px);white-space:nowrap;pointer-events:none;transition:all .3s;}
+#map-status.ok{color:var(--bright);border-color:var(--bright);}
+#map-status.err{color:var(--red);border-color:var(--red);}
+#map-status.pin{color:var(--hole);border-color:var(--hole);}
+#map-status.lms{color:var(--lm);border-color:var(--lm);}
+#scroll{flex:1;overflow-y:auto;padding:10px 10px 26px;display:flex;flex-direction:column;gap:9px;}
+#scroll::-webkit-scrollbar{width:3px;}
+#scroll::-webkit-scrollbar-thumb{background:var(--gb);border-radius:99px;}
+.card{background:var(--gm);border:1px solid var(--gb);border-radius:12px;padding:12px;}
+.slbl{font-size:9px;font-weight:600;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:7px;}
+/* Course panel */
+#crs-search-row{display:flex;gap:6px;margin-bottom:7px;}
+#crs-input{flex:1;padding:8px 10px;font-size:13px;background:var(--gd);border:1px solid var(--gb);border-radius:7px;color:var(--text);font-family:'DM Sans',sans-serif;}
+#crs-input:focus{outline:none;border-color:var(--bright);}
+#crs-search-btn{padding:8px 11px;font-size:11px;font-weight:600;background:rgba(74,222,128,.08);border:1px solid var(--bright);border-radius:7px;color:var(--bright);cursor:pointer;font-family:'DM Sans',sans-serif;}
+#crs-nearby-btn{width:100%;padding:9px;font-size:12px;font-weight:600;background:var(--gd);border:1px solid var(--gb);border-radius:7px;color:var(--dim);cursor:pointer;font-family:'DM Sans',sans-serif;margin-bottom:7px;}
+#crs-nearby-btn:hover{border-color:var(--bright);color:var(--bright);}
+#crs-results{display:flex;flex-direction:column;gap:4px;max-height:190px;overflow-y:auto;}
+.cri{padding:8px 10px;background:var(--gd);border:1px solid var(--gb);border-radius:7px;cursor:pointer;transition:all .15s;}
+.cri:hover{border-color:var(--bright);}
+.cri-name{font-size:12px;font-weight:600;color:var(--text);}
+.cri-det{font-size:10px;color:var(--muted);margin-top:1px;}
+#crs-loading{font-size:11px;color:var(--muted);text-align:center;padding:10px;font-style:italic;display:none;}
+/* Pin card */
+#pin-card{border-color:#3b1f6b;}
+.pin-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.pin-title{font-size:12px;font-weight:600;color:var(--hole);}
+#pin-clear{font-size:10px;color:var(--muted);background:none;border:1px solid var(--gb);border-radius:5px;padding:2px 7px;cursor:pointer;font-family:'DM Sans',sans-serif;display:none;}
+#pin-clear:hover{border-color:var(--red);color:var(--red);}
+#pin-tap-btn{width:100%;padding:9px;font-size:12px;font-weight:600;background:rgba(167,139,250,.08);border:1px solid var(--hole);border-radius:7px;color:var(--hole);cursor:pointer;font-family:'DM Sans',sans-serif;margin-bottom:5px;}
+#pin-tap-btn.tap{animation:pa 1.5s infinite;}
+@keyframes pa{0%,100%{border-color:var(--hole);}50%{border-color:#c4b5fd;}}
+#pin-status{font-size:10px;color:var(--muted);text-align:center;min-height:15px;}
+#pin-status.ok{color:var(--hole);}
+#pin-saved{display:none;align-items:center;gap:7px;background:rgba(167,139,250,.08);border:1px solid var(--hole);border-radius:7px;padding:7px 9px;margin-top:4px;}
+#pin-saved.vis{display:flex;}
+#fw-row{display:flex;align-items:center;gap:7px;margin-top:8px;}
+#fw-lbl{font-size:10px;color:var(--muted);flex:1;}
+#fw-val{font-family:'Bebas Neue',sans-serif;font-size:21px;color:var(--hole);min-width:34px;text-align:center;line-height:1;}
+.fw-btn{width:30px;height:30px;font-size:14px;background:var(--gd);border:1px solid var(--gb);border-radius:6px;color:var(--soft);cursor:pointer;font-family:'DM Sans',sans-serif;}
+/* Club */
+#club-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
+.cbtn{padding:6px 0;font-size:10px;font-weight:600;background:var(--gd);border:1px solid var(--gb);border-radius:5px;color:var(--muted);cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s;}
+.cbtn.active{background:#166534;border-color:var(--bright);color:var(--bright);}
+.cbtn.hd{border-color:#854d0e;color:var(--yellow);}
+.cbtn.hd.active{background:#166534;border-color:var(--bright);color:var(--bright);}
+.dist-row{display:flex;align-items:center;gap:8px;justify-content:center;}
+.ndg{width:42px;height:42px;font-size:16px;background:var(--gd);border:1px solid var(--gb);border-radius:8px;color:var(--soft);cursor:pointer;font-family:'DM Sans',sans-serif;}
+.ndg:hover{border-color:var(--bright);}
+#dist-v{font-family:'Bebas Neue',sans-serif;font-size:44px;color:var(--soft);letter-spacing:2px;min-width:78px;text-align:center;line-height:1;}
+#lhint{font-size:10px;color:var(--smart);text-align:center;margin-top:3px;min-height:14px;font-style:italic;}
+.tog-row{display:flex;gap:4px;}
+.tog{flex:1;padding:7px 3px;font-size:11px;font-weight:500;background:var(--gd);border:1px solid var(--gb);border-radius:7px;color:var(--muted);cursor:pointer;font-family:'DM Sans',sans-serif;text-align:center;transition:all .15s;}
+.tog.active{background:#166534;border-color:var(--bright);color:var(--bright);}
+/* Landmark */
+#lm-card{border-color:#1e3a4a;}
+.lm-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;}
+.lm-title{font-size:12px;font-weight:600;color:var(--lm);}
+#lm-clear{font-size:10px;color:var(--muted);background:none;border:1px solid var(--gb);border-radius:5px;padding:2px 7px;cursor:pointer;font-family:'DM Sans',sans-serif;display:none;}
+#lm-clear:hover{border-color:var(--red);color:var(--red);}
+.lm-tabs{display:flex;gap:4px;margin-bottom:7px;}
+.ltab{flex:1;padding:7px;font-size:11px;font-weight:600;background:var(--gd);border:1px solid var(--gb);border-radius:6px;color:var(--muted);cursor:pointer;font-family:'DM Sans',sans-serif;text-align:center;transition:all .15s;}
+.ltab.active{background:rgba(56,189,248,.08);border-color:var(--lm);color:var(--lm);}
+#lm-map-s,#lm-comp-s{display:none;}
+#lm-map-s.v,#lm-comp-s.v{display:block;}
+#lm-tap-btn{width:100%;padding:9px;font-size:11px;font-weight:600;background:rgba(56,189,248,.07);border:1px solid var(--lm);border-radius:7px;color:var(--lm);cursor:pointer;font-family:'DM Sans',sans-serif;margin-bottom:4px;}
+#lm-tap-btn.tap{animation:la 1.5s infinite;}
+@keyframes la{0%,100%{border-color:var(--lm);}50%{border-color:#7dd3fc;}}
+#lm-tap-st{font-size:10px;color:var(--muted);text-align:center;min-height:14px;}
+#lm-tap-st.ok{color:var(--lm);}
+#comp-wrap{display:flex;flex-direction:column;align-items:center;gap:5px;}
+#comp-ring{width:96px;height:96px;border-radius:50%;background:var(--gd);border:2px solid var(--gb);position:relative;margin:3px auto;}
+#comp-n{position:absolute;top:4px;left:50%;transform:translateX(-50%);font-size:9px;font-weight:700;color:var(--lm);}
+#comp-s{position:absolute;bottom:4px;left:50%;transform:translateX(-50%);font-size:8px;color:var(--muted);}
+#comp-e{position:absolute;right:4px;top:50%;transform:translateY(-50%);font-size:8px;color:var(--muted);}
+#comp-w{position:absolute;left:4px;top:50%;transform:translateY(-50%);font-size:8px;color:var(--muted);}
+#comp-needle{position:absolute;top:50%;left:50%;width:3px;height:36px;background:linear-gradient(to bottom,var(--lm) 50%,#374151 50%);transform-origin:bottom center;transform:translateX(-50%) translateY(-100%) rotate(0deg);border-radius:3px 3px 0 0;transition:transform .2s;}
+#comp-val{font-family:'Bebas Neue',sans-serif;font-size:32px;color:var(--lm);letter-spacing:2px;text-align:center;line-height:1;}
+#comp-card{font-size:8px;color:var(--muted);text-align:center;letter-spacing:2px;text-transform:uppercase;}
+#comp-lock{width:100%;padding:9px;font-size:11px;font-weight:600;background:rgba(56,189,248,.07);border:1px solid var(--lm);border-radius:7px;color:var(--lm);cursor:pointer;font-family:'DM Sans',sans-serif;margin-top:5px;}
+#comp-st{font-size:10px;text-align:center;color:var(--muted);min-height:14px;margin-top:3px;}
+#comp-st.ok{color:var(--lm);}
+#comp-err{font-size:10px;text-align:center;color:var(--red);min-height:14px;}
+#lm-set{display:none;align-items:center;gap:6px;background:rgba(56,189,248,.07);border:1px solid var(--lm);border-radius:7px;padding:7px 9px;margin-top:4px;}
+#lm-set.v{display:flex;}
+/* Smart */
+.sz-row{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+.sz-inf{flex:1;}
+.sz-t{font-size:12px;font-weight:600;color:var(--smart);}
+.sz-d{font-size:10px;color:var(--muted);margin-top:2px;}
+.sz-tog{position:relative;width:44px;height:24px;flex-shrink:0;}
+.sz-tog input{opacity:0;width:0;height:0;}
+.sz-sl{position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:var(--gd);border:1px solid var(--gb);border-radius:99px;transition:.3s;}
+.sz-sl:before{position:absolute;content:"";height:16px;width:16px;left:3px;bottom:3px;background:var(--muted);border-radius:50%;transition:.3s;}
+.sz-tog input:checked+.sz-sl{background:rgba(245,158,11,.15);border-color:var(--smart);}
+.sz-tog input:checked+.sz-sl:before{transform:translateX(18px);background:var(--smart);}
+#sz-ua{font-size:10px;color:var(--muted);font-style:italic;margin-top:4px;}
+/* GPS / Go */
+#gps-btn{width:100%;padding:11px;font-size:12px;font-weight:600;background:var(--gd);border:1px solid var(--bright);border-radius:8px;color:var(--bright);cursor:pointer;font-family:'DM Sans',sans-serif;}
+#gps-msg{font-size:11px;text-align:center;padding:4px 0;color:var(--yellow);min-height:18px;}
+#gps-msg.ok{color:var(--bright);}
+#gps-msg.err{color:var(--red);}
+#go-btn{width:100%;padding:14px;font-size:22px;font-weight:700;font-family:'Bebas Neue',sans-serif;letter-spacing:3px;background:linear-gradient(135deg,#166534,#15803d);border:none;border-radius:12px;color:#fff;cursor:pointer;box-shadow:0 4px 20px rgba(74,222,128,.2);transition:all .2s;}
+#go-btn:disabled{background:var(--gm);color:#4b5563;box-shadow:none;cursor:not-allowed;}
+/* Tracking */
+#track-card{display:flex;flex-direction:column;align-items:center;gap:5px;}
+#track-lbl{font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;}
+#track-big{font-family:'Bebas Neue',sans-serif;font-size:78px;color:var(--soft);letter-spacing:4px;line-height:1;transition:color .3s;}
+#track-unit{font-size:10px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-top:-4px;}
+.bar-wrap{width:100%;margin-top:10px;}
+.bar-bg{background:var(--gd);border-radius:99px;height:11px;width:100%;position:relative;overflow:visible;border:1px solid var(--gb);}
+.bar-ov{width:100%;height:100%;overflow:hidden;border-radius:99px;}
+#bar-fill{height:100%;border-radius:99px;transition:width .5s ease,background .3s;width:0%;background:var(--yellow);}
+.zm{position:absolute;top:-3px;width:2px;height:17px;background:rgba(255,255,255,.4);pointer-events:none;}
+.szm{position:absolute;top:-3px;width:2px;height:17px;background:var(--smart);opacity:.7;pointer-events:none;}
+.hzm{position:absolute;top:-4px;width:3px;height:19px;background:var(--hole);opacity:.9;pointer-events:none;border-radius:1px;}
+.lzm{position:absolute;top:-4px;width:3px;height:19px;background:var(--lm);opacity:.9;pointer-events:none;border-radius:1px;}
+.bar-lbls{display:flex;justify-content:space-between;font-size:9px;color:var(--muted);margin-top:4px;}
+#stat-badge{margin-top:7px;padding:6px 15px;border-radius:99px;border:1px solid var(--muted);font-size:11px;font-weight:600;color:var(--muted);transition:all .3s;}
+#stat-badge.in{color:var(--bright);border-color:var(--bright);}
+#stat-badge.ov{color:var(--red);border-color:var(--red);}
+#stat-badge.un{color:var(--yellow);border-color:var(--yellow);}
+.zone-row{display:flex;gap:7px;}
+.zs{flex:1;background:var(--gd);border-radius:8px;padding:8px;text-align:center;}
+.zn{font-family:'Bebas Neue',sans-serif;font-size:21px;color:var(--soft);letter-spacing:1px;}
+.zn.sm{color:var(--smart);}
+.zn.ho{color:var(--hole);}
+.zn.lmc{color:var(--lm);}
+.zl{font-size:8px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;}
+#zone-hint{font-size:11px;color:var(--dim);text-align:center;font-style:italic;}
+.info-badge{display:none;align-items:center;gap:7px;border-radius:8px;padding:8px 11px;}
+.info-badge.v{display:flex;}
+#hbadge{border:1px solid var(--hole);background:rgba(167,139,250,.08);}
+#hbadge .bi{font-size:15px;}
+#hbadge .bt{font-size:11px;font-weight:600;color:var(--hole);}
+#hbadge .bd{font-size:9px;color:var(--muted);margin-top:1px;}
+#lmbadge{border:1px solid var(--lm);background:rgba(56,189,248,.08);}
+#lmbadge .bi{font-size:15px;}
+#lmbadge .bt{font-size:11px;font-weight:600;color:var(--lm);}
+#lmbadge .bd{font-size:9px;color:var(--muted);margin-top:1px;}
+/* Found */
+#found-card{border-color:#854d0e;}
+#found-gps-btn{width:100%;padding:11px;font-size:12px;font-weight:600;background:rgba(245,158,11,.1);border:1px solid var(--smart);border-radius:8px;color:var(--smart);cursor:pointer;font-family:'DM Sans',sans-serif;margin-bottom:7px;}
+#found-dist{width:100%;padding:8px 10px;font-size:13px;background:var(--gd);border:1px solid var(--gb);border-radius:7px;color:var(--text);font-family:'DM Sans',sans-serif;margin-bottom:6px;}
+#found-dist:focus{outline:none;border-color:var(--smart);}
+#found-dir-row{display:flex;gap:4px;margin-bottom:6px;}
+.fdbtn{flex:1;padding:6px 2px;font-size:11px;font-weight:500;background:var(--gd);border:1px solid var(--gb);border-radius:6px;color:var(--muted);cursor:pointer;font-family:'DM Sans',sans-serif;text-align:center;}
+.fdbtn.active{background:rgba(245,158,11,.1);border-color:var(--smart);color:var(--smart);}
+#found-save{width:100%;padding:10px;font-size:12px;font-weight:600;background:rgba(245,158,11,.08);border:1px solid var(--smart);border-radius:8px;color:var(--smart);cursor:pointer;font-family:'DM Sans',sans-serif;}
+#found-msg{font-size:10px;text-align:center;color:var(--bright);min-height:16px;margin-top:4px;}
+.pill-row{display:flex;gap:4px;flex-wrap:wrap;justify-content:center;}
+.pill{padding:3px 9px;background:var(--gm);border:1px solid var(--gb);border-radius:99px;font-size:10px;color:var(--dim);}
+.pill.ho{border-color:#3b1f6b;color:var(--hole);}
+.pill.lmc{border-color:#1e3a4a;color:var(--lm);}
+#reset-btn{width:100%;padding:11px;font-size:12px;font-weight:600;background:transparent;border:1px solid #374151;border-radius:8px;color:var(--dim);cursor:pointer;font-family:'DM Sans',sans-serif;}
+/* History */
+#hist-panel{display:none;flex-direction:column;gap:9px;}
+#hist-panel.v{display:flex;}
+.hch{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;}
+.hcn{font-family:'Bebas Neue',sans-serif;font-size:17px;color:var(--soft);letter-spacing:2px;}
+.hcc{font-size:10px;color:var(--muted);}
+.hsr{display:flex;gap:5px;margin-bottom:5px;}
+.hs{flex:1;background:var(--gd);border-radius:7px;padding:7px;text-align:center;}
+.hn{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1px;}
+.hn.p{color:var(--soft);}
+.hn.w{color:var(--smart);}
+.hl{font-size:8px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;}
+.shots{display:flex;flex-direction:column;gap:3px;}
+.srow{display:flex;align-items:center;gap:5px;background:var(--gd);border-radius:6px;padding:6px 8px;font-size:10px;color:var(--dim);}
+.sdate{font-size:9px;color:var(--muted);min-width:48px;}
+.sdet{flex:1;}
+.sdelta{font-size:10px;font-weight:600;}
+.sdelta.p{color:var(--bright);}
+.sdelta.n{color:var(--red);}
+.sdel{background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px;padding:0 2px;}
+.sdel:hover{color:var(--red);}
+#hist-empty{font-size:12px;color:var(--muted);text-align:center;padding:26px 0;font-style:italic;}
+#hist-clear{width:100%;padding:10px;font-size:11px;font-weight:600;background:transparent;border:1px solid #374151;border-radius:8px;color:#6b7280;cursor:pointer;font-family:'DM Sans',sans-serif;}
+#hist-clear:hover{border-color:var(--red);color:var(--red);}
+#crs-panel{display:none;flex-direction:column;gap:9px;}
+#crs-panel.v{display:flex;}
+#setup,#track{display:flex;flex-direction:column;gap:9px;}
+.hid{display:none!important;}
 </style>
 </head>
 <body>
 <div id="app">
 
-  <div id="header">
-    <div class="logo-row">
-      <span class="logo-icon">⛳</span>
-      <div>
-        <div class="logo-title">Find My Ball</div>
-        <div class="logo-sub">GPS Ball Locator</div>
-      </div>
-    </div>
-    <div class="header-right">
-      <div id="phase-badge">SETUP</div>
-      <button class="hdr-btn" onclick="toggleHistoryPanel()">📊 History</button>
-    </div>
+<div id="hdr">
+  <div class="logo-row"><span class="logo-icon">⛳</span>
+    <div><div class="logo-title">Find My Ball</div><div class="logo-sub">GPS Ball Locator</div></div>
   </div>
-
-  <div id="map-wrap">
-    <div id="map"></div>
-    <div id="map-status">📍 Waiting for GPS…</div>
-    <div id="landmark-tap-hint">📍 Tap map to place landmark</div>
-    <button id="map-expand-btn" onclick="toggleMapExpand()">⛶ Expand</button>
-  </div>
-
-  <div id="scroll-area">
-
-    <!-- ══ SETUP ══ -->
-    <div id="setup-panel">
-
-      <div class="card">
-        <div class="section-label">Club Selection</div>
-        <div id="club-grid"></div>
-      </div>
-
-      <div class="card">
-        <div class="section-label">Typical Distance (yards)</div>
-        <div class="dist-row">
-          <button class="nudge-btn" onclick="adjustDist(-5)">−5</button>
-          <div id="dist-display">250</div>
-          <button class="nudge-btn" onclick="adjustDist(5)">+5</button>
-        </div>
-        <div id="learned-dist-hint"></div>
-      </div>
-
-      <div class="card">
-        <div class="section-label">Shot Direction</div>
-        <div class="toggle-row" id="lateral-row"></div>
-        <div class="section-label" style="margin-top:10px">Shot Shape</div>
-        <div class="toggle-row" id="shape-row"></div>
-      </div>
-
-      <!-- LANDMARK CARD -->
-      <div class="card" id="landmark-card">
-        <div class="landmark-header">
-          <span class="landmark-title">🌳 Landmark Direction</span>
-          <button id="landmark-clear-btn" onclick="clearLandmark()" style="display:none">✕ Clear</button>
-        </div>
-        <div class="lm-tabs">
-          <button class="lm-tab active" id="lm-tab-map" onclick="setLandmarkTab('map')">🗺 Tap Map</button>
-          <button class="lm-tab" id="lm-tab-compass" onclick="setLandmarkTab('compass')">🧭 Compass</button>
-        </div>
-
-        <!-- Map tap section -->
-        <div id="lm-map-section" class="visible">
-          <button id="lm-tap-btn" onclick="startLandmarkTap()">📍 Tap Map to Place Landmark</button>
-          <div id="lm-tap-status">Tap the button, then tap your landmark on the map above</div>
-        </div>
-
-        <!-- Compass section -->
-        <div id="lm-compass-section">
-          <div id="compass-wrap">
-            <div id="compass-ring">
-              <span class="compass-n">N</span>
-              <span class="compass-s">S</span>
-              <span class="compass-e">E</span>
-              <span class="compass-w">W</span>
-              <div id="compass-needle"></div>
-            </div>
-            <div id="compass-bearing-display">—°</div>
-            <div id="compass-bearing-label">Point phone at landmark</div>
-          </div>
-          <div id="compass-err"></div>
-          <button id="compass-btn" onclick="lockCompassBearing()">🔒 Lock This Bearing</button>
-          <div id="compass-status">Point your phone toward the landmark, then lock</div>
-        </div>
-
-        <!-- Set indicator (shown for both methods once landmark is set) -->
-        <div id="landmark-set-row">
-          <span id="landmark-set-icon">🌳</span>
-          <div id="landmark-set-info">
-            <div id="landmark-set-label">Landmark set</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="section-label">GPS Location</div>
-        <button id="gps-btn" onclick="acquireGPS()">📍 Get My Location at Hitting Spot</button>
-        <div id="gps-msg">Tap to lock in your position before you walk</div>
-      </div>
-
-      <div class="card">
-        <div class="section-label">Smart Zone</div>
-        <div id="smart-zone-row">
-          <div id="smart-zone-info">
-            <div id="smart-zone-title">⚡ Smart Zone</div>
-            <div id="smart-zone-desc">Adjusted from your shot history</div>
-          </div>
-          <label id="smart-zone-toggle">
-            <input type="checkbox" id="smart-zone-check" onchange="onSmartZoneToggle()" />
-            <span class="toggle-slider"></span>
-          </label>
-        </div>
-        <div id="smart-zone-unavail"></div>
-      </div>
-
-      <button id="go-btn" disabled onclick="handleGo()">GO FIND IT</button>
-    </div>
-
-    <!-- ══ TRACKING ══ -->
-    <div id="tracking-panel" class="hidden-panel">
-
-      <div class="card" id="track-card">
-        <div id="track-label">Distance from Hit Point</div>
-        <div id="track-big">—</div>
-        <div id="track-unit">yards</div>
-        <div class="bar-wrap">
-          <div class="bar-bg">
-            <div class="bar-overflow"><div id="bar-fill"></div></div>
-            <div class="zone-marker" id="zone-min-marker"></div>
-            <div class="zone-marker" id="zone-max-marker"></div>
-            <div class="smart-zone-marker" id="smart-min-marker" style="display:none"></div>
-            <div class="smart-zone-marker" id="smart-max-marker" style="display:none"></div>
-            <div class="landmark-zone-marker" id="landmark-dist-marker" style="display:none"></div>
-          </div>
-          <div class="bar-labels">
-            <span id="bar-label-min">—</span>
-            <span id="bar-label-center" style="color:var(--text);font-weight:600">—</span>
-            <span id="bar-label-max">—</span>
-          </div>
-        </div>
-        <div id="status-badge">Walk toward your shot…</div>
-      </div>
-
-      <!-- Landmark tracking info -->
-      <div id="landmark-tracking-badge">
-        <span id="ltb-icon">🌳</span>
-        <div id="ltb-info">
-          <div id="ltb-title">Landmark bearing active</div>
-          <div id="ltb-desc">—</div>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="section-label" id="zone-card-label">Search Zone</div>
-        <div class="zone-row">
-          <div class="zone-stat">
-            <div class="zone-stat-num" id="zone-range">—</div>
-            <div class="zone-stat-label">Yards Out</div>
-          </div>
-          <div class="zone-stat">
-            <div class="zone-stat-num" id="zone-width">—</div>
-            <div class="zone-stat-label">Yards Wide (±)</div>
-          </div>
-        </div>
-        <div id="zone-hint">Calculating…</div>
-      </div>
-
-      <div class="card" id="found-card">
-        <div class="section-label">📍 Log Where You Found It</div>
-        <button id="found-gps-btn" onclick="logFoundGPS()">🎯 Ball Found Here (use my GPS)</button>
-        <div style="text-align:center;font-size:10px;color:var(--muted);margin-bottom:6px">— or enter manually —</div>
-        <div id="found-manual-row">
-          <input id="found-manual-dist" type="number" placeholder="Actual distance (yds)" inputmode="numeric" />
-        </div>
-        <div id="found-direction-row"></div>
-        <button id="found-save-btn" onclick="saveFoundManual()">💾 Save Shot Data</button>
-        <div id="found-msg"></div>
-      </div>
-
-      <div class="info-row" id="info-pills"></div>
-      <button id="reset-btn" onclick="handleReset()">↩ New Shot</button>
-    </div>
-
-    <!-- ══ HISTORY ══ -->
-    <div id="history-panel">
-      <div id="history-content"></div>
-      <button id="clear-all-btn" onclick="clearAllHistory()">🗑 Clear All History</button>
-    </div>
-
+  <div class="hdr-r">
+    <div id="phase-badge">SETUP</div>
+    <button class="hbtn" id="crs-tab" onclick="toggleCrs()">🏌 Course</button>
+    <button class="hbtn" id="hist-tab" onclick="toggleHist()">📊 History</button>
   </div>
 </div>
 
+<div id="course-bar">
+  <div id="course-name" class="dim">No course selected</div>
+  <div id="hole-sel">
+    <span id="hole-lbl">HOLE</span>
+    <button class="h-arr" onclick="chHole(-1)">‹</button>
+    <div><div id="hole-num">—</div><div id="hole-info">—</div></div>
+    <button class="h-arr" onclick="chHole(1)">›</button>
+  </div>
+  <button id="next-hole-btn" onclick="nextHole()">Next Hole ›</button>
+</div>
+
+<div id="map-wrap">
+  <div id="map"></div>
+  <div id="map-status">📍 Waiting for GPS…</div>
+  <div id="map-hint">📍 Tap to place</div>
+  <button id="map-expand-btn" onclick="toggleExp()">⛶ Expand</button>
+</div>
+
+<div id="scroll">
+
+  <div id="crs-panel">
+    <div class="card">
+      <div class="slbl">Find a Course</div>
+      <button id="crs-nearby-btn" onclick="nearbyC()">📍 Find Courses Near Me</button>
+      <div id="crs-search-row">
+        <input id="crs-input" type="text" placeholder="Search by name…"/>
+        <button id="crs-search-btn" onclick="searchC()">Search</button>
+      </div>
+      <div id="crs-loading">Searching…</div>
+      <div id="crs-results"></div>
+    </div>
+  </div>
+
+  <div id="setup">
+    <div class="card">
+      <div class="slbl">Club Selection</div>
+      <div id="club-grid"></div>
+    </div>
+    <div class="card">
+      <div class="slbl">Typical Distance (yards)</div>
+      <div class="dist-row">
+        <button class="ndg" onclick="adjD(-5)">−5</button>
+        <div id="dist-v">250</div>
+        <button class="ndg" onclick="adjD(5)">+5</button>
+      </div>
+      <div id="lhint"></div>
+    </div>
+    <div class="card">
+      <div class="slbl">Shot Direction</div>
+      <div class="tog-row" id="lat-row"></div>
+      <div class="slbl" style="margin-top:9px">Shot Shape</div>
+      <div class="tog-row" id="shape-row"></div>
+    </div>
+
+    <div class="card" id="pin-card">
+      <div class="pin-hdr">
+        <span class="pin-title">🚩 Hole Direction</span>
+        <button id="pin-clear" onclick="clearPin()">✕ Clear</button>
+      </div>
+      <button id="pin-tap-btn" onclick="startPin()">🗺 Tap Green/Pin on Map</button>
+      <div id="pin-status">Tap the green on the map to set hole direction — saved permanently for this hole</div>
+      <div id="pin-saved">
+        <span>🚩</span>
+        <div><div id="pin-saved-t" style="font-size:11px;color:var(--hole);">Pin set</div><div id="pin-saved-s" style="font-size:9px;color:var(--muted);"></div></div>
+      </div>
+      <div id="fw-row">
+        <span id="fw-lbl">Fairway width (yds)</span>
+        <button class="fw-btn" onclick="adjFW(-5)">−</button>
+        <div id="fw-val">30</div>
+        <button class="fw-btn" onclick="adjFW(5)">+</button>
+      </div>
+    </div>
+
+    <div class="card" id="lm-card">
+      <div class="lm-hdr">
+        <span class="lm-title">🌳 Landmark Direction</span>
+        <button id="lm-clear" onclick="clearLM()">✕ Clear</button>
+      </div>
+      <div class="lm-tabs">
+        <button class="ltab active" id="lmt-map" onclick="setLTab('map')">🗺 Tap Map</button>
+        <button class="ltab" id="lmt-comp" onclick="setLTab('comp')">🧭 Compass</button>
+      </div>
+      <div id="lm-map-s" class="v">
+        <button id="lm-tap-btn" onclick="startLM()">📍 Tap Map to Place Landmark</button>
+        <div id="lm-tap-st">Tap the button, then tap your landmark on the map</div>
+      </div>
+      <div id="lm-comp-s">
+        <div id="comp-wrap">
+          <div id="comp-ring">
+            <span id="comp-n">N</span><span id="comp-s">S</span>
+            <span id="comp-e">E</span><span id="comp-w">W</span>
+            <div id="comp-needle"></div>
+          </div>
+          <div id="comp-val">—°</div><div id="comp-card">Point at landmark</div>
+        </div>
+        <div id="comp-err"></div>
+        <button id="comp-lock" onclick="lockComp()">🔒 Lock This Bearing</button>
+        <div id="comp-st">Point phone toward landmark, then lock</div>
+      </div>
+      <div id="lm-set">
+        <span>🌳</span>
+        <div id="lm-set-info" style="flex:1;font-size:11px;color:var(--lm);">—</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="slbl">Smart Zone</div>
+      <div class="sz-row">
+        <div class="sz-inf"><div class="sz-t">⚡ Smart Zone</div><div class="sz-d" id="sz-desc">Adjusted from your shot history</div></div>
+        <label class="sz-tog"><input type="checkbox" id="sz-chk" onchange="S.smartOn=this.checked"/><span class="sz-sl"></span></label>
+      </div>
+      <div id="sz-ua"></div>
+    </div>
+
+    <div class="card">
+      <div class="slbl">GPS — Stand at Your Hitting Spot</div>
+      <button id="gps-btn" onclick="getGPS()">📍 Get My Location</button>
+      <div id="gps-msg">Tap to lock in your position before you walk</div>
+    </div>
+
+    <button id="go-btn" disabled onclick="go()">GO FIND IT</button>
+  </div>
+
+  <div id="track" class="hid">
+    <div class="card" id="track-card">
+      <div id="track-lbl">Distance from Hit Point</div>
+      <div id="track-big">—</div>
+      <div id="track-unit">yards</div>
+      <div class="bar-wrap">
+        <div class="bar-bg">
+          <div class="bar-ov"><div id="bar-fill"></div></div>
+          <div class="zm" id="zm1"></div><div class="zm" id="zm2"></div>
+          <div class="szm" id="szm1" style="display:none"></div><div class="szm" id="szm2" style="display:none"></div>
+          <div class="hzm" id="hzm" style="display:none"></div>
+          <div class="lzm" id="lzm" style="display:none"></div>
+        </div>
+        <div class="bar-lbls"><span id="bl-min">—</span><span id="bl-ctr" style="color:var(--text);font-weight:600">—</span><span id="bl-max">—</span></div>
+      </div>
+      <div id="stat-badge">Walk toward your shot…</div>
+    </div>
+
+    <div class="info-badge" id="hbadge"><span class="bi">🚩</span><div><div class="bt" id="hb-t">Hole direction active</div><div class="bd" id="hb-d">—</div></div></div>
+    <div class="info-badge" id="lmbadge"><span class="bi">🌳</span><div><div class="bt" id="lmb-t">Landmark bearing active</div><div class="bd" id="lmb-d">—</div></div></div>
+
+    <div class="card">
+      <div class="slbl" id="zone-lbl">Search Zone</div>
+      <div class="zone-row">
+        <div class="zs"><div class="zn" id="z-range">—</div><div class="zl">Yards Out</div></div>
+        <div class="zs"><div class="zn" id="z-width">—</div><div class="zl">Yards Wide (±)</div></div>
+      </div>
+      <div id="zone-hint">Calculating…</div>
+    </div>
+
+    <div class="card" id="found-card">
+      <div class="slbl">📍 Log Where You Found It</div>
+      <button id="found-gps-btn" onclick="logGPS()">🎯 Ball Found Here (GPS)</button>
+      <div style="text-align:center;font-size:10px;color:var(--muted);margin-bottom:6px">— or enter manually —</div>
+      <input id="found-dist" type="number" placeholder="Actual distance (yds)" inputmode="numeric"/>
+      <div id="found-dir-row"></div>
+      <button id="found-save" onclick="logManual()">💾 Save Shot Data</button>
+      <div id="found-msg"></div>
+    </div>
+
+    <div class="pill-row" id="pills"></div>
+    <button id="reset-btn" onclick="reset()">↩ New Shot</button>
+  </div>
+
+  <div id="hist-panel">
+    <div id="hist-content"></div>
+    <button id="hist-clear" onclick="clearH()">🗑 Clear All History</button>
+  </div>
+
+</div>
+</div>
+
 <script>
-// ═══════════════════════════════════
-//  CONSTANTS
-// ═══════════════════════════════════
-const CLUBS=[
-  {label:"Driver",dist:250},{label:"3W",dist:220},{label:"5W",dist:200},
-  {label:"3i",dist:185},{label:"4i",dist:175},{label:"5i",dist:165},
-  {label:"6i",dist:155},{label:"7i",dist:145},{label:"8i",dist:135},
-  {label:"9i",dist:125},{label:"PW",dist:110},{label:"GW",dist:95},
-  {label:"SW",dist:80},{label:"LW",dist:65},
-];
-const LATERALS=[{val:"left",label:"◀ Left"},{val:"straight",label:"● Center"},{val:"right",label:"Right ▶"}];
-const SHAPES=[{val:"straight",label:"Straight"},{val:"slight",label:"Slight"},{val:"hook",label:"Hook/Draw"},{val:"big",label:"Big Miss"}];
-const FOUND_DIRS=[{val:"left",label:"◀ Left"},{val:"center",label:"● Center"},{val:"right",label:"Right ▶"}];
-const STORAGE_KEY='fmb_shot_history_v1';
+const API_KEY='7RXID6TC2XXDDC2TJ5Q4LDJUHA';
+const SK_HIST='fmb_h1',SK_PINS='fmb_p1',SK_CRS='fmb_c1';
+const CLUBS=[{l:"Driver",d:250},{l:"3W",d:220},{l:"5W",d:200},{l:"3i",d:185},{l:"4i",d:175},{l:"5i",d:165},{l:"6i",d:155},{l:"7i",d:145},{l:"8i",d:135},{l:"9i",d:125},{l:"PW",d:110},{l:"GW",d:95},{l:"SW",d:80},{l:"LW",d:65}];
+const LATS=[{v:"left",t:"◀ Left"},{v:"straight",t:"● Center"},{v:"right",t:"Right ▶"}];
+const SHAPES=[{v:"straight",t:"Straight"},{v:"slight",t:"Slight"},{v:"hook",t:"Hook/Draw"},{v:"big",t:"Big Miss"}];
+const FDIRS=[{v:"left",t:"◀ Left"},{v:"center",t:"● Center"},{v:"right",t:"Right ▶"}];
 
-// ═══════════════════════════════════
-//  STATE
-// ═══════════════════════════════════
-let S={
-  phase:"setup",
-  club:CLUBS[0], typicalDist:250,
-  lateral:"straight", shape:"straight",
-  gpsStatus:"idle",
-  hitPoint:null, currentPos:null,
-  watchId:null, zone:null,
-  smartZoneEnabled:false, smartZone:null,
-  foundDir:"center",
-  mapExpanded:false, showingHistory:false,
-  // Landmark
-  landmark:null,        // {lat,lon} — map tap
-  landmarkBearing:null, // degrees — locked compass or computed from lat/lon
-  landmarkTab:"map",
-  landmarkTapping:false,
-  compassBearing:null,
-  compassWatchId:null,
-};
+let S={phase:'setup',club:CLUBS[0],dist:250,lat:'straight',shape:'straight',gpsOk:false,hitPt:null,curPos:null,watchId:null,zone:null,smartOn:false,smartZone:null,foundDir:'center',mapExp:false,showCrs:false,showHist:false,lm:null,lmBear:null,lmTab:'map',lmTap:false,compBear:null,pinTap:false,course:null,holeNum:1,holeBear:null,holePinLL:null,fw:30};
 
-// ═══════════════════════════════════
-//  STORAGE
-// ═══════════════════════════════════
-function loadHistory(){try{return JSON.parse(localStorage.getItem(STORAGE_KEY)||'{}');}catch{return {};}}
-function saveHistory(h){localStorage.setItem(STORAGE_KEY,JSON.stringify(h));}
-function addShotRecord(r){const h=loadHistory();if(!h[r.club])h[r.club]=[];h[r.club].unshift(r);saveHistory(h);}
-function deleteShotRecord(club,id){const h=loadHistory();if(h[club])h[club]=h[club].filter(r=>r.id!==id);saveHistory(h);renderHistory();}
-function clearAllHistory(){if(!confirm('Clear ALL shot history?'))return;localStorage.removeItem(STORAGE_KEY);renderHistory();buildClubGrid();updateLearnedDistHint();}
+// Storage
+function lH(){try{return JSON.parse(localStorage.getItem(SK_HIST)||'{}')}catch{return{}}}
+function sH(h){localStorage.setItem(SK_HIST,JSON.stringify(h))}
+function addShot(r){const h=lH();if(!h[r.club])h[r.club]=[];h[r.club].unshift(r);sH(h)}
+function delShot(c,id){const h=lH();if(h[c])h[c]=h[c].filter(r=>r.id!==id);sH(h);renderH()}
+function clearH(){if(!confirm('Clear ALL shot history?'))return;localStorage.removeItem(SK_HIST);renderH();buildGrid();updHint()}
+function lP(){try{return JSON.parse(localStorage.getItem(SK_PINS)||'{}')}catch{return{}}}
+function sPin(cid,hn,la,lo,fw){const p=lP();if(!p[cid])p[cid]={};p[cid][hn]={lat:la,lon:lo,fw};localStorage.setItem(SK_PINS,JSON.stringify(p))}
+function gPin(cid,hn){return lP()[cid]?.[hn]||null}
+function dPin(cid,hn){const p=lP();if(p[cid])delete p[cid][hn];localStorage.setItem(SK_PINS,JSON.stringify(p))}
+function lC(){try{return JSON.parse(localStorage.getItem(SK_CRS)||'null')}catch{return null}}
+function sC(c,h){localStorage.setItem(SK_CRS,JSON.stringify({c,h}))}
 
-// ═══════════════════════════════════
-//  MATH
-// ═══════════════════════════════════
-function haversine(la1,lo1,la2,lo2){
-  const R=6371000,toR=d=>d*Math.PI/180;
-  const dLa=toR(la2-la1),dLo=toR(lo2-lo1);
-  const a=Math.sin(dLa/2)**2+Math.cos(toR(la1))*Math.cos(toR(la2))*Math.sin(dLo/2)**2;
-  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a))*1.09361;
-}
-function bearingBetween(la1,lo1,la2,lo2){
-  const toR=d=>d*Math.PI/180;
-  const dLo=toR(lo2-lo1);
-  const y=Math.sin(dLo)*Math.cos(toR(la2));
-  const x=Math.cos(toR(la1))*Math.sin(toR(la2))-Math.sin(toR(la1))*Math.cos(toR(la2))*Math.cos(dLo);
-  return (Math.atan2(y,x)*180/Math.PI+360)%360;
-}
-function destPoint(lat,lon,bear,distM){
-  const R=6371000,b=bear*Math.PI/180;
-  const la1=lat*Math.PI/180,lo1=lon*Math.PI/180,d=distM/R;
-  const la2=Math.asin(Math.sin(la1)*Math.cos(d)+Math.cos(la1)*Math.sin(d)*Math.cos(b));
-  const lo2=lo1+Math.atan2(Math.sin(b)*Math.sin(d)*Math.cos(la1),Math.cos(d)-Math.sin(la1)*Math.sin(la2));
-  return[la2*180/Math.PI,lo2*180/Math.PI];
-}
-function yToM(y){return y*0.9144;}
-function getBallZone(dist,lateral,shape){
-  const ss=lateral==='left'?-1:lateral==='right'?1:0;
-  const sm={straight:0,slight:6,hook:18,big:32}[shape]||0;
-  return{lateralYards:ss*sm,radiusLong:Math.round(dist*.1+sm*.4+5),radiusLat:Math.round(8+Math.abs(ss*sm)*.35+sm*.4)};
-}
-function getMovementBearing(){
-  if(S.hitPoint&&S.currentPos){
-    const dl=S.currentPos.lat-S.hitPoint.lat,dn=S.currentPos.lon-S.hitPoint.lon;
-    if(Math.abs(dl)>.000001||Math.abs(dn)>.000001)return(Math.atan2(dn,dl)*180/Math.PI+360)%360;
-  }
-  return S.landmarkBearing||0;
-}
+// Math
+function hav(la1,lo1,la2,lo2){const R=6371000,r=d=>d*Math.PI/180,a=Math.sin(r(la2-la1)/2)**2+Math.cos(r(la1))*Math.cos(r(la2))*Math.sin(r(lo2-lo1)/2)**2;return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a))*1.09361}
+function brng(la1,lo1,la2,lo2){const r=d=>d*Math.PI/180,dL=r(lo2-lo1),y=Math.sin(dL)*Math.cos(r(la2)),x=Math.cos(r(la1))*Math.sin(r(la2))-Math.sin(r(la1))*Math.cos(r(la2))*Math.cos(dL);return(Math.atan2(y,x)*180/Math.PI+360)%360}
+function dst(la,lo,b,dm){const R=6371000,br=b*Math.PI/180,la1=la*Math.PI/180,lo1=lo*Math.PI/180,d=dm/R,la2=Math.asin(Math.sin(la1)*Math.cos(d)+Math.cos(la1)*Math.sin(d)*Math.cos(br)),lo2=lo1+Math.atan2(Math.sin(br)*Math.sin(d)*Math.cos(la1),Math.cos(d)-Math.sin(la1)*Math.sin(la2));return[la2*180/Math.PI,lo2*180/Math.PI]}
+function yM(y){return y*0.9144}
+function card(b){return['N','NE','E','SE','S','SW','W','NW','N'][Math.round(b/45)%8]}
+function movBear(){if(S.hitPt&&S.curPos){const dl=S.curPos.lat-S.hitPt.lat,dn=S.curPos.lon-S.hitPt.lon;if(Math.abs(dl)>.000001||Math.abs(dn)>.000001)return(Math.atan2(dn,dl)*180/Math.PI+360)%360}return S.holeBear??S.lmBear??0}
+function ballZone(dist,lat,shape){const ss=lat==='left'?-1:lat==='right'?1:0,sm={straight:0,slight:6,hook:18,big:32}[shape]||0;return{latY:ss*sm,rL:Math.round(dist*.1+sm*.4+5),rW:Math.round(8+Math.abs(ss*sm)*.35+sm*.4)}}
 
-// ═══════════════════════════════════
-//  MAP
-// ═══════════════════════════════════
+// Map
 const map=L.map('map',{zoomControl:false,attributionControl:false});
 L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:20}).addTo(map);
-L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',{maxZoom:20,opacity:.5}).addTo(map);
-map.setView([36.1,-86.7],16);
+L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',{maxZoom:20,opacity:.45}).addTo(map);
+map.setView([36.1,-86.7],15);
 L.control.zoom({position:'bottomright'}).addTo(map);
-
-let hitMarker=null,posMarker=null,landmarkMarker=null;
-let searchEllipse=null,smartEllipse=null,landmarkEllipse=null;
-let bearingLine=null,aimLine=null;
-
-function makeIcon(emoji,size){
-  return L.divIcon({html:`<div style="font-size:${size}px;filter:drop-shadow(0 2px 5px rgba(0,0,0,.8))">${emoji}</div>`,iconSize:[size,size],iconAnchor:[size/2,size/2],className:''});
-}
-function updatePosMarker(){
-  if(!S.currentPos)return;
-  const ll=[S.currentPos.lat,S.currentPos.lon];
-  if(!posMarker)posMarker=L.marker(ll,{icon:makeIcon('🔵',26),zIndexOffset:1000}).addTo(map);
-  else posMarker.setLatLng(ll);
-}
-function placeLandmarkMarker(lat,lon){
-  if(landmarkMarker)landmarkMarker.remove();
-  landmarkMarker=L.marker([lat,lon],{icon:makeIcon('🌳',28),zIndexOffset:900})
-    .bindPopup('<b>Landmark</b><br>Ball was heading here').addTo(map);
-}
-
-function buildEllipsePts(cLat,cLon,bear,longM,latM){
-  const pts=[],steps=48;
-  for(let i=0;i<=steps;i++){
-    const t=(i/steps)*2*Math.PI;
-    const p1=destPoint(cLat,cLon,bear,longM*Math.cos(t));
-    const p2=destPoint(p1[0],p1[1],(bear+90+360)%360,latM*Math.sin(t));
-    pts.push(p2);
+let mHit=null,mPos=null,mPin=null,mLM=null,eStd=null,eSm=null,eHole=null,eLM=null,lBear=null,lAim=null,lFW=null;
+function mkI(em,sz){return L.divIcon({html:`<div style="font-size:${sz}px;filter:drop-shadow(0 2px 5px rgba(0,0,0,.8))">${em}</div>`,iconSize:[sz,sz],iconAnchor:[sz/2,sz/2],className:''})}
+function updPos(){if(!S.curPos)return;const ll=[S.curPos.lat,S.curPos.lon];if(!mPos)mPos=L.marker(ll,{icon:mkI('🔵',24),zIndexOffset:1000}).addTo(map);else mPos.setLatLng(ll)}
+function placeHit(){if(mHit)mHit.remove();if(!S.hitPt)return;mHit=L.marker([S.hitPt.lat,S.hitPt.lon],{icon:mkI('📍',28)}).bindPopup('<b>Hit Point</b>').addTo(map)}
+function placePin(la,lo){if(mPin)mPin.remove();mPin=L.marker([la,lo],{icon:mkI('🚩',28),zIndexOffset:900}).bindPopup('<b>Pin / Green</b>').addTo(map)}
+function placeLM(la,lo){if(mLM)mLM.remove();mLM=L.marker([la,lo],{icon:mkI('🌳',26),zIndexOffset:890}).bindPopup('<b>Landmark</b>').addTo(map)}
+function ellPts(cLa,cLo,b,lM,wM){const pts=[],N=48;for(let i=0;i<=N;i++){const t=(i/N)*2*Math.PI,p1=dst(cLa,cLo,b,lM*Math.cos(t)),p2=dst(p1[0],p1[1],(b+90+360)%360,wM*Math.sin(t));pts.push(p2)}return pts}
+function drawZones(){
+  if(!S.hitPt||!S.zone)return;
+  [eStd,eSm,eHole,eLM,lBear,lAim,lFW].forEach(l=>{if(l)l.remove()});
+  eStd=eSm=eHole=eLM=lBear=lAim=lFW=null;
+  const b=movBear(),z=S.zone;
+  const fwd=dst(S.hitPt.lat,S.hitPt.lon,b,yM(S.dist)),ctr=dst(fwd[0],fwd[1],(b+90+360)%360,yM(z.latY));
+  const pts=ellPts(ctr[0],ctr[1],b,yM(z.rL),yM(z.rW));
+  eStd=L.polygon(pts,{color:'#f97316',fillColor:'#f97316',fillOpacity:.11,weight:2,dashArray:'6 4'}).bindPopup(`<b>Standard Zone</b><br>${Math.max(0,S.dist-z.rL)}–${S.dist+z.rL} yds`).addTo(map);
+  lAim=L.polyline([[S.hitPt.lat,S.hitPt.lon],ctr],{color:'#fff',weight:1.5,opacity:.2,dashArray:'4 6'}).addTo(map);
+  if(S.smartOn&&S.smartZone){const sz=S.smartZone,sf=dst(S.hitPt.lat,S.hitPt.lon,b,yM(sz.dist)),sc=dst(sf[0],sf[1],(b+90+360)%360,yM(sz.latY));eSm=L.polygon(ellPts(sc[0],sc[1],b,yM(sz.rL),yM(sz.rW)),{color:'#f59e0b',fillColor:'#f59e0b',fillOpacity:.14,weight:2.5}).bindPopup(`<b>⚡ Smart Zone</b>`).addTo(map)}
+  if(S.holeBear!==null){
+    const hb=S.holeBear,hFwd=dst(S.hitPt.lat,S.hitPt.lon,hb,yM(S.dist*1.5));
+    lBear=L.polyline([[S.hitPt.lat,S.hitPt.lon],hFwd],{color:'#a78bfa',weight:2,opacity:.6,dashArray:'8 5'}).addTo(map);
+    const fwPts=[];const steps=24;
+    for(let i=0;i<=steps;i++){const d=yM(i*(S.dist*1.5/steps)),p=dst(S.hitPt.lat,S.hitPt.lon,hb,d);fwPts.push(dst(p[0],p[1],(hb-90+360)%360,yM(S.fw/2)))}
+    for(let i=steps;i>=0;i--){const d=yM(i*(S.dist*1.5/steps)),p=dst(S.hitPt.lat,S.hitPt.lon,hb,d);fwPts.push(dst(p[0],p[1],(hb+90+360)%360,yM(S.fw/2)))}
+    lFW=L.polygon(fwPts,{color:'#a78bfa',fillColor:'#a78bfa',fillOpacity:.07,weight:1,dashArray:'3 5'}).addTo(map);
+    const hCtr=dst(S.hitPt.lat,S.hitPt.lon,hb,yM(S.dist));
+    eHole=L.polygon(ellPts(hCtr[0],hCtr[1],hb,yM(z.rL),yM(Math.max(4,Math.round(z.rW*.4)))),{color:'#a78bfa',fillColor:'#a78bfa',fillOpacity:.2,weight:2.5}).bindPopup(`<b>🚩 Hole Zone</b>`).addTo(map)
   }
-  return pts;
+  if(S.lmBear!==null){const lb=S.lmBear,re=dst(S.hitPt.lat,S.hitPt.lon,lb,yM(S.dist*1.3));L.polyline([[S.hitPt.lat,S.hitPt.lon],re],{color:'#38bdf8',weight:1.5,opacity:.6,dashArray:'8 5'}).addTo(map);const lc=dst(S.hitPt.lat,S.hitPt.lon,lb,yM(S.dist));eLM=L.polygon(ellPts(lc[0],lc[1],lb,yM(z.rL),yM(Math.max(4,Math.round(z.rW*.45)))),{color:'#38bdf8',fillColor:'#38bdf8',fillOpacity:.18,weight:2.5}).bindPopup(`<b>🌳 Landmark Zone</b>`).addTo(map)}
+  try{map.fitBounds(L.latLngBounds([[S.hitPt.lat,S.hitPt.lon],...pts]),{padding:[26,26]})}catch(e){}
 }
 
-function drawAllZones(){
-  if(!S.hitPoint||!S.zone)return;
-  [searchEllipse,smartEllipse,landmarkEllipse,bearingLine,aimLine].forEach(l=>{if(l)l.remove();});
-  searchEllipse=smartEllipse=landmarkEllipse=bearingLine=aimLine=null;
-
-  const bear=getMovementBearing();
-  const z=S.zone;
-
-  // Standard zone
-  const fwd=destPoint(S.hitPoint.lat,S.hitPoint.lon,bear,yToM(S.typicalDist));
-  const ctr=destPoint(fwd[0],fwd[1],(bear+90+360)%360,yToM(z.lateralYards));
-  const pts=buildEllipsePts(ctr[0],ctr[1],bear,yToM(z.radiusLong),yToM(z.radiusLat));
-  searchEllipse=L.polygon(pts,{color:'#f97316',fillColor:'#f97316',fillOpacity:.13,weight:2,dashArray:'6 4'})
-    .bindPopup(`<b>Standard Zone</b><br>${Math.max(0,S.typicalDist-z.radiusLong)}–${S.typicalDist+z.radiusLong} yds`).addTo(map);
-  aimLine=L.polyline([[S.hitPoint.lat,S.hitPoint.lon],ctr],{color:'#fff',weight:1.5,opacity:.25,dashArray:'4 6'}).addTo(map);
-
-  // Smart zone
-  if(S.smartZoneEnabled&&S.smartZone){
-    const sz=S.smartZone;
-    const sf=destPoint(S.hitPoint.lat,S.hitPoint.lon,bear,yToM(sz.dist));
-    const sc=destPoint(sf[0],sf[1],(bear+90+360)%360,yToM(sz.lateralYards));
-    const sp=buildEllipsePts(sc[0],sc[1],bear,yToM(sz.radiusLong),yToM(sz.radiusLat));
-    smartEllipse=L.polygon(sp,{color:'#f59e0b',fillColor:'#f59e0b',fillOpacity:.16,weight:2.5})
-      .bindPopup(`<b>⚡ Smart Zone</b><br>Avg ${sz.dist} yds · ${sz.count} shots`).addTo(map);
-  }
-
-  // Landmark zone — intersection of bearing line with distance arc
-  if(S.landmarkBearing!==null){
-    const lBear=S.landmarkBearing;
-
-    // Bearing ray from hit point
-    const rayEnd=destPoint(S.hitPoint.lat,S.hitPoint.lon,lBear,yToM(S.typicalDist*1.3));
-    bearingLine=L.polyline([[S.hitPoint.lat,S.hitPoint.lon],rayEnd],{
-      color:'#38bdf8',weight:2,opacity:.7,dashArray:'8 5'
-    }).addTo(map);
-
-    // Intersection point = center of landmark zone (bearing × typical dist)
-    const lCenter=destPoint(S.hitPoint.lat,S.hitPoint.lon,lBear,yToM(S.typicalDist));
-    // Tight ellipse — narrow along bearing, wider perpendicular
-    const lLong=yToM(z.radiusLong);
-    const lLat =yToM(Math.max(5,Math.round(z.radiusLat*0.45))); // landmark narrows lateral spread
-    const lPts=buildEllipsePts(lCenter[0],lCenter[1],lBear,lLong,lLat);
-    landmarkEllipse=L.polygon(lPts,{color:'#38bdf8',fillColor:'#38bdf8',fillOpacity:.22,weight:2.5})
-      .bindPopup(`<b>🌳 Landmark Zone</b><br>Bearing refined search area<br>${Math.max(0,S.typicalDist-z.radiusLong)}–${S.typicalDist+z.radiusLong} yds`).addTo(map);
-  }
-
-  // Fit bounds
+// Course API
+async function nearbyC(){
+  setLoading(true);document.getElementById('crs-results').innerHTML='';
+  if(!navigator.geolocation){showCMsg('GPS not available');return}
+  navigator.geolocation.getCurrentPosition(async pos=>{
+    try{
+      const r=await fetch(`https://api.golfcourseapi.com/v1/courses/nearby?latitude=${pos.coords.latitude}&longitude=${pos.coords.longitude}`,{headers:{'Authorization':`Key ${API_KEY}`}});
+      const d=await r.json();setLoading(false);renderCrs(d.courses||[])
+    }catch(e){setLoading(false);showCMsg('Could not load courses')}
+  },()=>{setLoading(false);showCMsg('GPS error')})
+}
+async function searchC(){
+  const q=document.getElementById('crs-input').value.trim();if(!q)return;
+  setLoading(true);document.getElementById('crs-results').innerHTML='';
   try{
-    const allPts=[[S.hitPoint.lat,S.hitPoint.lon],...pts];
-    map.fitBounds(L.latLngBounds(allPts),{padding:[28,28]});
-  }catch(e){}
+    const r=await fetch(`https://api.golfcourseapi.com/v1/search?search_query=${encodeURIComponent(q)}`,{headers:{'Authorization':`Key ${API_KEY}`}});
+    const d=await r.json();setLoading(false);renderCrs(d.courses||[])
+  }catch(e){setLoading(false);showCMsg('Search failed')}
 }
-
-// ═══════════════════════════════════
-//  LANDMARK — MAP TAP
-// ═══════════════════════════════════
-function startLandmarkTap(){
-  if(!S.currentPos&&!S.hitPoint){
-    document.getElementById('lm-tap-status').textContent='Get GPS fix first';
-    return;
+function setLoading(on){document.getElementById('crs-loading').style.display=on?'block':'none'}
+function showCMsg(m){document.getElementById('crs-results').innerHTML=`<div style="color:var(--red);text-align:center;padding:10px;font-size:11px">${m}</div>`}
+function renderCrs(courses){
+  const el=document.getElementById('crs-results');
+  if(!courses.length){el.innerHTML='<div style="color:var(--muted);text-align:center;padding:10px;font-size:11px;font-style:italic">No courses found</div>';return}
+  el.innerHTML='';
+  courses.slice(0,15).forEach(c=>{
+    const div=document.createElement('div');div.className='cri';
+    const hs=c.numberOfHoles||c.holes||18,dist=c.distance_miles?`${c.distance_miles.toFixed(1)} mi · `:'';
+    div.innerHTML=`<div class="cri-name">${c.clubName||c.courseName||'Unknown'}</div><div class="cri-det">${dist}${c.city||''}, ${c.state||''} · ${hs} holes</div>`;
+    div.onclick=()=>selCrs(c);el.appendChild(div)
+  })
+}
+async function selCrs(c){
+  let course={id:c.id||c.clubId||`${c.latitude}_${c.longitude}`,name:c.clubName||c.courseName||'Unknown',holes:c.numberOfHoles||c.holes||18,lat:parseFloat(c.latitude||c.lat||0),lon:parseFloat(c.longitude||c.lon||0),scorecard:null};
+  if(c.id||c.clubId){
+    try{const r=await fetch(`https://api.golfcourseapi.com/v1/courses/${c.id||c.clubId}`,{headers:{'Authorization':`Key ${API_KEY}`}});const d=await r.json();if(d.scorecard)course.scorecard=parseSC(d.scorecard,course.holes)}catch(e){}
   }
-  S.landmarkTapping=true;
-  const btn=document.getElementById('lm-tap-btn');
-  btn.textContent='✕ Cancel';
-  btn.classList.add('active');
-  btn.onclick=cancelLandmarkTap;
-  document.getElementById('map-wrap').classList.add('landmark-selecting');
-  document.getElementById('landmark-tap-hint').style.display='block';
-  document.getElementById('lm-tap-status').textContent='Tap your landmark on the map above';
-  setMapStatus('🌳 Tap to place landmark','landmark');
+  if(!course.scorecard&&c.scorecard){try{course.scorecard=parseSC(typeof c.scorecard==='string'?JSON.parse(c.scorecard):c.scorecard,course.holes)}catch(e){}}
+  S.course=course;S.holeNum=1;sC(course,1);updCBar();loadPinData();
+  if(course.lat&&course.lon)map.setView([course.lat,course.lon],16);
+  toggleCrs()
 }
-function cancelLandmarkTap(){
-  S.landmarkTapping=false;
-  const btn=document.getElementById('lm-tap-btn');
-  btn.textContent='📍 Tap Map to Place Landmark';
-  btn.classList.remove('active');
-  btn.onclick=startLandmarkTap;
-  document.getElementById('map-wrap').classList.remove('landmark-selecting');
-  document.getElementById('landmark-tap-hint').style.display='none';
-  setMapStatus(S.gpsStatus==='ready'?'✅ GPS locked':'📍 Waiting for GPS…',S.gpsStatus==='ready'?'gps-ok':'');
+function parseSC(sc,total){
+  const r={};
+  if(Array.isArray(sc)){sc.forEach(h=>{const n=h.Hole||h.hole||h.number;if(n)r[n]={par:h.Par||h.par||4,yards:holeYds(h)}})}
+  if(!Object.keys(r).length)for(let i=1;i<=total;i++)r[i]={par:4,yards:0};
+  return r
 }
+function holeYds(h){if(h.tees){const t=Object.values(h.tees)[0];return t?.yards||t?.metres||0}return h.yards||h.yardage||h.distance||0}
+
+// Course bar
+function updCBar(){
+  if(!S.course){document.getElementById('course-name').textContent='No course selected';document.getElementById('course-name').classList.add('dim');document.getElementById('hole-num').textContent='—';document.getElementById('hole-info').textContent='—';return}
+  document.getElementById('course-name').textContent=S.course.name;document.getElementById('course-name').classList.remove('dim');document.getElementById('hole-num').textContent=S.holeNum;
+  const sc=S.course.scorecard?.[S.holeNum];
+  document.getElementById('hole-info').textContent=sc?`Par ${sc.par}${sc.yards?' · '+sc.yards+'y':''}`:`Hole ${S.holeNum}`
+}
+function chHole(d){if(!S.course)return;S.holeNum=Math.max(1,Math.min(S.course.holes||18,S.holeNum+d));updCBar();loadPinData();sC(S.course,S.holeNum)}
+function nextHole(){chHole(1);document.getElementById('next-hole-btn').style.display='none';reset()}
+function loadPinData(){
+  if(!S.course)return;
+  const sv=gPin(S.course.id,S.holeNum);
+  if(sv){S.holePinLL={lat:sv.lat,lon:sv.lon};S.fw=sv.fw||30;document.getElementById('fw-val').textContent=S.fw;placePin(sv.lat,sv.lon);updPinUI(sv.lat,sv.lon,true)}
+  else{S.holePinLL=null;S.holeBear=null;if(mPin){mPin.remove();mPin=null}updPinUI(null,null,false)}
+}
+function compHoleBear(){if(!S.holePinLL||!S.hitPt)return;S.holeBear=brng(S.hitPt.lat,S.hitPt.lon,S.holePinLL.lat,S.holePinLL.lon)}
+
+// Pin
+function startPin(){
+  if(!S.curPos&&!S.hitPt){setPinSt('Get GPS fix first',false);return}
+  S.pinTap=true;const btn=document.getElementById('pin-tap-btn');
+  btn.textContent='✕ Cancel';btn.classList.add('tap');btn.onclick=cancelPin;
+  document.getElementById('map-wrap').style.cursor='crosshair';
+  const hint=document.getElementById('map-hint');hint.style.display='block';hint.style.borderColor='var(--hole)';hint.style.color='var(--hole)';hint.textContent='🚩 Tap the green / pin';
+  setMS('🚩 Tap green to set hole direction','pin')
+}
+function cancelPin(){S.pinTap=false;const btn=document.getElementById('pin-tap-btn');btn.textContent='🗺 Tap Green/Pin on Map';btn.classList.remove('tap');btn.onclick=startPin;document.getElementById('map-wrap').style.cursor='';document.getElementById('map-hint').style.display='none';setMS(S.gpsOk?'✅ GPS locked':'📍 Waiting for GPS…',S.gpsOk?'ok':'')}
+function updPinUI(la,lo,saved){
+  const sv=document.getElementById('pin-saved'),cl=document.getElementById('pin-clear');
+  if(saved&&la){sv.classList.add('vis');document.getElementById('pin-saved-t').textContent=`Hole ${S.holeNum} pin saved`;document.getElementById('pin-saved-s').textContent='Tap map to reposition';cl.style.display='';setPinSt('✅ Saved — auto-aims next round too',true)}
+  else{sv.classList.remove('vis');cl.style.display='none';setPinSt('Tap the green on the satellite map to set hole direction — saved permanently',false)}
+}
+function setPinSt(t,ok){const el=document.getElementById('pin-status');el.textContent=t;el.className=ok?'ok':''}
+function clearPin(){if(!S.course)return;dPin(S.course.id,S.holeNum);S.holePinLL=null;S.holeBear=null;if(mPin){mPin.remove();mPin=null}updPinUI(null,null,false)}
+function adjFW(d){S.fw=Math.max(10,Math.min(80,S.fw+d));document.getElementById('fw-val').textContent=S.fw;if(S.course&&S.holePinLL)sPin(S.course.id,S.holeNum,S.holePinLL.lat,S.holePinLL.lon,S.fw)}
+
+// Landmark
+function setLTab(tab){S.lmTab=tab;document.getElementById('lmt-map').classList.toggle('active',tab==='map');document.getElementById('lmt-comp').classList.toggle('active',tab==='comp');document.getElementById('lm-map-s').classList.toggle('v',tab==='map');document.getElementById('lm-comp-s').classList.toggle('v',tab==='comp');if(tab==='comp')startComp();else stopComp()}
+function startLM(){
+  if(!S.curPos&&!S.hitPt){document.getElementById('lm-tap-st').textContent='Get GPS fix first';return}
+  S.lmTap=true;const btn=document.getElementById('lm-tap-btn');
+  btn.textContent='✕ Cancel';btn.classList.add('tap');btn.onclick=cancelLM;
+  document.getElementById('map-wrap').style.cursor='crosshair';
+  const hint=document.getElementById('map-hint');hint.style.display='block';hint.style.borderColor='var(--lm)';hint.style.color='var(--lm)';hint.textContent='🌳 Tap to place landmark';
+  setMS('🌳 Tap to place landmark','lms')
+}
+function cancelLM(){S.lmTap=false;const btn=document.getElementById('lm-tap-btn');btn.textContent='📍 Tap Map to Place Landmark';btn.classList.remove('tap');btn.onclick=startLM;document.getElementById('map-wrap').style.cursor='';document.getElementById('map-hint').style.display='none';setMS(S.gpsOk?'✅ GPS locked':'📍 Waiting for GPS…',S.gpsOk?'ok':'')}
+function clearLM(){S.lm=null;S.lmBear=null;if(mLM){mLM.remove();mLM=null}document.getElementById('lm-set').classList.remove('v');document.getElementById('lm-clear').style.display='none';document.getElementById('lm-tap-st').textContent='Tap the button, then tap your landmark on the map';document.getElementById('comp-st').textContent='Point phone toward landmark, then lock';document.getElementById('comp-st').className=''}
+function setLMUI(b){document.getElementById('lm-set').classList.add('v');document.getElementById('lm-set-info').innerHTML=`<b>${Math.round(b)}° ${card(b)}</b> — landmark locked`;document.getElementById('lm-clear').style.display=''}
+function startComp(){document.getElementById('comp-err').textContent='';if(typeof DeviceOrientationEvent!=='undefined'&&typeof DeviceOrientationEvent.requestPermission==='function'){DeviceOrientationEvent.requestPermission().then(r=>{if(r==='granted')listenO();else document.getElementById('comp-err').textContent='Compass permission denied. Use Tap Map.'}).catch(()=>document.getElementById('comp-err').textContent='Could not access compass.')}else if(window.DeviceOrientationEvent)listenO();else document.getElementById('comp-err').textContent='No compass. Use Tap Map.'}
+function listenO(){window.addEventListener('deviceorientationabsolute',handleO,true);window.addEventListener('deviceorientation',handleO,true)}
+function handleO(e){let b=null;if(e.absolute&&e.alpha!==null)b=(360-e.alpha+360)%360;else if(e.webkitCompassHeading!==undefined)b=e.webkitCompassHeading;else if(e.alpha!==null)b=(360-e.alpha+360)%360;if(b===null)return;S.compBear=Math.round(b);document.getElementById('comp-needle').style.transform=`translateX(-50%) translateY(-100%) rotate(${b}deg)`;document.getElementById('comp-val').textContent=`${Math.round(b)}°`;document.getElementById('comp-card').textContent=card(b)}
+function stopComp(){window.removeEventListener('deviceorientationabsolute',handleO,true);window.removeEventListener('deviceorientation',handleO,true)}
+function lockComp(){if(S.compBear===null){document.getElementById('comp-st').textContent='No reading yet';return}S.lmBear=S.compBear;S.lm=null;document.getElementById('comp-st').textContent=`✅ Locked at ${S.compBear}°`;document.getElementById('comp-st').className='ok';setLMUI(S.compBear);if(S.hitPt)drawZones()}
+
 map.on('click',function(e){
-  if(!S.landmarkTapping)return;
-  const ref=S.hitPoint||S.currentPos;
-  if(!ref){cancelLandmarkTap();return;}
-  S.landmark={lat:e.latlng.lat,lon:e.latlng.lng};
-  S.landmarkBearing=bearingBetween(ref.lat,ref.lon,S.landmark.lat,S.landmark.lon);
-  placeLandmarkMarker(S.landmark.lat,S.landmark.lon);
-  cancelLandmarkTap();
-  setLandmarkSetUI(Math.round(S.landmarkBearing));
-  if(S.hitPoint)drawAllZones();
-});
+  const ref=S.hitPt||S.curPos;
+  if(S.pinTap){if(!ref){cancelPin();return}const la=e.latlng.lat,lo=e.latlng.lng;S.holePinLL={lat:la,lon:lo};if(S.course)sPin(S.course.id,S.holeNum,la,lo,S.fw);placePin(la,lo);cancelPin();updPinUI(la,lo,true);if(S.hitPt)compHoleBear();if(S.hitPt)drawZones();return}
+  if(S.lmTap){if(!ref){cancelLM();return}S.lm={lat:e.latlng.lat,lon:e.latlng.lng};S.lmBear=brng(ref.lat,ref.lon,S.lm.lat,S.lm.lon);placeLM(S.lm.lat,S.lm.lon);cancelLM();setLMUI(S.lmBear);if(S.hitPt)drawZones()}
+})
 
-// ═══════════════════════════════════
-//  LANDMARK — COMPASS
-// ═══════════════════════════════════
-function setLandmarkTab(tab){
-  S.landmarkTab=tab;
-  document.getElementById('lm-tab-map').classList.toggle('active',tab==='map');
-  document.getElementById('lm-tab-compass').classList.toggle('active',tab==='compass');
-  document.getElementById('lm-map-section').classList.toggle('visible',tab==='map');
-  document.getElementById('lm-compass-section').classList.toggle('visible',tab==='compass');
-  if(tab==='compass')startCompass();
-  else stopCompass();
-}
-function startCompass(){
-  document.getElementById('compass-err').textContent='';
-  if(typeof DeviceOrientationEvent!=='undefined'&&typeof DeviceOrientationEvent.requestPermission==='function'){
-    DeviceOrientationEvent.requestPermission().then(r=>{
-      if(r==='granted')listenOrientation();
-      else document.getElementById('compass-err').textContent='Compass permission denied. Use Tap Map instead.';
-    }).catch(()=>document.getElementById('compass-err').textContent='Could not access compass.');
-  } else if(window.DeviceOrientationEvent){
-    listenOrientation();
-  } else {
-    document.getElementById('compass-err').textContent='No compass available on this device. Use Tap Map instead.';
-  }
-}
-function listenOrientation(){
-  window.addEventListener('deviceorientationabsolute',handleOrientation,true);
-  window.addEventListener('deviceorientation',handleOrientation,true);
-}
-function handleOrientation(e){
-  let b=null;
-  if(e.absolute&&e.alpha!==null) b=(360-e.alpha+360)%360;
-  else if(e.webkitCompassHeading!==undefined) b=e.webkitCompassHeading;
-  else if(e.alpha!==null) b=(360-e.alpha+360)%360;
-  if(b===null)return;
-  S.compassBearing=Math.round(b);
-  document.getElementById('compass-needle').style.transform=`translateX(-50%) translateY(-100%) rotate(${b}deg)`;
-  document.getElementById('compass-bearing-display').textContent=`${Math.round(b)}°`;
-  document.getElementById('compass-bearing-label').textContent=bearingLabel(b);
-}
-function stopCompass(){
-  window.removeEventListener('deviceorientationabsolute',handleOrientation,true);
-  window.removeEventListener('deviceorientation',handleOrientation,true);
-}
-function lockCompassBearing(){
-  if(S.compassBearing===null){document.getElementById('compass-status').textContent='No compass reading yet';return;}
-  S.landmarkBearing=S.compassBearing;
-  S.landmark=null; // compass mode — no map pin
-  document.getElementById('compass-status').textContent=`✅ Locked at ${S.compassBearing}°`;
-  document.getElementById('compass-status').className='set';
-  setLandmarkSetUI(S.compassBearing);
-  if(S.hitPoint)drawAllZones();
-}
-function bearingLabel(b){
-  const dirs=['N','NE','E','SE','S','SW','W','NW','N'];
-  return dirs[Math.round(b/45)%8];
-}
-function clearLandmark(){
-  S.landmark=null; S.landmarkBearing=null;
-  if(landmarkMarker){landmarkMarker.remove();landmarkMarker=null;}
-  if(bearingLine){bearingLine.remove();bearingLine=null;}
-  if(landmarkEllipse){landmarkEllipse.remove();landmarkEllipse=null;}
-  document.getElementById('landmark-set-row').classList.remove('visible');
-  document.getElementById('landmark-clear-btn').style.display='none';
-  document.getElementById('lm-tap-status').textContent='Tap the button, then tap your landmark on the map above';
-  document.getElementById('compass-status').textContent='Point your phone toward the landmark, then lock';
-  document.getElementById('compass-status').className='';
-  if(S.hitPoint)drawAllZones();
-}
-function setLandmarkSetUI(bearingDeg){
-  const row=document.getElementById('landmark-set-row');
-  row.classList.add('visible');
-  document.getElementById('landmark-set-label').textContent=`${bearingDeg}° ${bearingLabel(bearingDeg)} — bearing locked`;
-  document.getElementById('landmark-set-info').innerHTML=`<b style="color:var(--landmark)">${bearingDeg}° ${bearingLabel(bearingDeg)}</b><br><span style="font-size:9px;color:var(--muted)">Landmark bearing locked</span>`;
-  document.getElementById('landmark-clear-btn').style.display='';
-  // Update bar marker
-  if(S.phase==='tracking'){
-    const pct=Math.min(100,Math.round((S.typicalDist/S.typicalDist)*100));
-    document.getElementById('landmark-dist-marker').style.display='';
-    document.getElementById('landmark-dist-marker').style.left=`${pct}%`;
-  }
-}
+// Smart zone
+function gStats(club){const shots=(lH()[club]||[]).filter(s=>s.foundDist!=null);if(shots.length<2)return null;const ds=shots.map(s=>s.foundDist),avg=ds.reduce((a,b)=>a+b,0)/ds.length,ls=shots.map(s=>s.flo||0),aL=ls.reduce((a,b)=>a+b,0)/ls.length,sd=Math.sqrt(ds.reduce((a,b)=>a+(b-avg)**2,0)/ds.length),lsd=Math.sqrt(Math.abs(ls.reduce((a,b)=>a+(b-aL)**2,0)/ls.length));return{count:shots.length,avgDist:Math.round(avg),avgLat:Math.round(aL),stdDev:Math.round(sd),rL:Math.max(8,Math.round(sd*1.5)),rW:Math.max(8,Math.round(lsd*1.5+Math.abs(aL)*.4+6))}}
+function compSZ(club,lat,shape){const st=gStats(club);if(!st)return null;const sm={straight:0,slight:6,hook:16,big:28}[shape]||0,ss=lat==='left'?-1:lat==='right'?1:0;return{dist:st.avgDist,latY:Math.round((ss*sm+st.avgLat)/2),rL:st.rL,rW:st.rW,count:st.count}}
+function updSZ(){const st=gStats(S.club.l),el=document.getElementById('sz-ua'),chk=document.getElementById('sz-chk'),desc=document.getElementById('sz-desc');if(!st){const h=(lH()[S.club.l]||[]).filter(s=>s.foundDist!=null).length;el.textContent=`Need ${2-h} more logged shot${2-h!==1?'s':''} to activate`;chk.disabled=true;chk.checked=false;S.smartOn=false;desc.textContent='Not enough data yet for this club'}else{el.textContent='';chk.disabled=false;desc.textContent=`Based on ${st.count} logged shots · avg ${st.avgDist}y`}}
+function updHint(){const st=gStats(S.club.l);document.getElementById('lhint').textContent=st?`⚡ History avg: ${st.avgDist} yds (${st.count} shots)`:''}
 
-// ═══════════════════════════════════
-//  SMART ZONE
-// ═══════════════════════════════════
-function getLearnedStats(club){
-  const shots=(loadHistory()[club]||[]).filter(s=>s.foundDist!=null);
-  if(shots.length<2)return null;
-  const dists=shots.map(s=>s.foundDist);
-  const avg=dists.reduce((a,b)=>a+b,0)/dists.length;
-  const lats=shots.map(s=>s.foundLateralOffset||0);
-  const avgLat=lats.reduce((a,b)=>a+b,0)/lats.length;
-  const sd=Math.sqrt(dists.reduce((a,b)=>a+(b-avg)**2,0)/dists.length);
-  const lsd=Math.sqrt(Math.abs(lats.reduce((a,b)=>a+(b-avgLat)**2,0)/lats.length));
-  return{count:shots.length,avgDist:Math.round(avg),avgLat:Math.round(avgLat),stdDev:Math.round(sd),
-    radiusLong:Math.max(8,Math.round(sd*1.5)),radiusLat:Math.max(8,Math.round(lsd*1.5+Math.abs(avgLat)*.4+6))};
-}
-function computeSmartZone(club,lat,shape){
-  const stats=getLearnedStats(club);
-  if(!stats)return null;
-  const sm={straight:0,slight:6,hook:16,big:28}[shape]||0;
-  const ss=lat==='left'?-1:lat==='right'?1:0;
-  return{dist:stats.avgDist,lateralYards:Math.round((ss*sm+stats.avgLat)/2),
-    radiusLong:stats.radiusLong,radiusLat:stats.radiusLat,count:stats.count};
-}
-function onSmartZoneToggle(){S.smartZoneEnabled=document.getElementById('smart-zone-check').checked;}
-function updateSmartZoneCard(){
-  const stats=getLearnedStats(S.club.label);
-  const el=document.getElementById('smart-zone-unavail');
-  const chk=document.getElementById('smart-zone-check');
-  const desc=document.getElementById('smart-zone-desc');
-  if(!stats){
-    const have=(loadHistory()[S.club.label]||[]).filter(s=>s.foundDist!=null).length;
-    el.textContent=`Need ${2-have} more logged shot${2-have!==1?'s':''} to activate`;
-    chk.disabled=true; chk.checked=false; S.smartZoneEnabled=false;
-    desc.textContent='Not enough data yet for this club';
-  } else {
-    el.textContent=''; chk.disabled=false;
-    desc.textContent=`Based on ${stats.count} logged shots · avg ${stats.avgDist}y`;
-  }
-}
-function updateLearnedDistHint(){
-  const stats=getLearnedStats(S.club.label);
-  document.getElementById('learned-dist-hint').textContent=stats?`⚡ History avg: ${stats.avgDist} yds (${stats.count} shots)`:'';
-}
-
-// ═══════════════════════════════════
-//  GPS
-// ═══════════════════════════════════
-function acquireGPS(){
-  if(!navigator.geolocation){setGpsMsg('GPS not supported','err');return;}
-  setGpsMsg('🔄 Acquiring GPS…','');
-  document.getElementById('gps-btn').disabled=true;
+// GPS
+function getGPS(){
+  if(!navigator.geolocation){setGM('GPS not supported','err');return}
+  setGM('🔄 Acquiring GPS…','');document.getElementById('gps-btn').disabled=true;
   navigator.geolocation.getCurrentPosition(pos=>{
-    S.currentPos={lat:pos.coords.latitude,lon:pos.coords.longitude};
-    S.gpsStatus='ready';
-    setGpsMsg('✅ GPS Ready — stand at your hitting spot','ok');
-    document.getElementById('go-btn').disabled=false;
-    document.getElementById('gps-btn').disabled=false;
-    setMapStatus('✅ GPS locked','gps-ok');
-    map.setView([S.currentPos.lat,S.currentPos.lon],18);
-    updatePosMarker();
-    // If landmark was tapped before GPS, recompute bearing
-    if(S.landmark){
-      S.landmarkBearing=bearingBetween(S.currentPos.lat,S.currentPos.lon,S.landmark.lat,S.landmark.lon);
-      setLandmarkSetUI(Math.round(S.landmarkBearing));
-    }
-  },()=>{
-    setGpsMsg('⚠️ Could not get location — allow GPS access','err');
-    document.getElementById('gps-btn').disabled=false;
-    setMapStatus('❌ GPS error','gps-err');
-  },{enableHighAccuracy:true,timeout:12000});
+    S.curPos={lat:pos.coords.latitude,lon:pos.coords.longitude};S.gpsOk=true;
+    setGM('✅ GPS Ready — stand at your hitting spot','ok');
+    document.getElementById('go-btn').disabled=false;document.getElementById('gps-btn').disabled=false;
+    setMS('✅ GPS locked','ok');map.setView([S.curPos.lat,S.curPos.lon],18);updPos();
+    if(S.lm)S.lmBear=brng(S.curPos.lat,S.curPos.lon,S.lm.lat,S.lm.lon);
+    if(S.holePinLL)S.holeBear=brng(S.curPos.lat,S.curPos.lon,S.holePinLL.lat,S.holePinLL.lon)
+  },()=>{setGM('⚠️ Could not get location — allow GPS access','err');document.getElementById('gps-btn').disabled=false;setMS('❌ GPS error','err')},{enableHighAccuracy:true,timeout:12000})
 }
-function setGpsMsg(t,c){const el=document.getElementById('gps-msg');el.textContent=t;el.className=c;}
-function setMapStatus(t,c){const el=document.getElementById('map-status');el.textContent=t;el.className=c;}
+function setGM(t,c){const el=document.getElementById('gps-msg');el.textContent=t;el.className=c}
+function setMS(t,c){const el=document.getElementById('map-status');el.textContent=t;el.className=c}
 
-// ═══════════════════════════════════
-//  HANDLE GO
-// ═══════════════════════════════════
-function handleGo(){
-  if(!S.currentPos)return;
-  S.zone=getBallZone(S.typicalDist,S.lateral,S.shape);
-  S.smartZone=computeSmartZone(S.club.label,S.lateral,S.shape);
-  S.hitPoint={...S.currentPos};
-  S.phase='tracking';
-  stopCompass();
-
-  // Panel switch
-  document.getElementById('setup-panel').classList.add('hidden-panel');
-  document.getElementById('tracking-panel').classList.remove('hidden-panel');
-  const badge=document.getElementById('phase-badge');
-  badge.textContent=S.landmarkBearing!==null?'LANDMARK+GPS':'TRACKING';
-  badge.className=S.landmarkBearing!==null?'active landmark-mode':'active';
-
-  const z=S.zone;
-  const az=S.smartZoneEnabled&&S.smartZone?S.smartZone:z;
-  const tDist=S.smartZoneEnabled&&S.smartZone?S.smartZone.dist:S.typicalDist;
-  const tMin=Math.max(0,tDist-az.radiusLong);
-  const tMax=tDist+az.radiusLong;
-
-  // Zone card
-  document.getElementById('zone-range').textContent=`${Math.max(0,S.typicalDist-z.radiusLong)}–${S.typicalDist+z.radiusLong}`;
-  document.getElementById('zone-width').textContent=`±${z.radiusLat}`;
-  if(S.smartZoneEnabled&&S.smartZone){
-    document.getElementById('zone-range').textContent=`${tMin}–${tMax}`;
-    document.getElementById('zone-range').classList.add('smart');
-    document.getElementById('zone-width').textContent=`±${az.radiusLat}`;
-    document.getElementById('zone-width').classList.add('smart');
-    document.getElementById('zone-card-label').textContent='⚡ Smart Zone Active';
-  }
-  if(S.landmarkBearing!==null){
-    const lLat=Math.max(5,Math.round(z.radiusLat*.45));
-    document.getElementById('zone-width').textContent=`±${lLat}`;
-    document.getElementById('zone-width').className='zone-stat-num landmark';
-    document.getElementById('zone-card-label').textContent='🌳 Landmark Zone Active';
-    // Landmark tracking badge
-    const ltb=document.getElementById('landmark-tracking-badge');
-    ltb.classList.add('visible');
-    document.getElementById('ltb-title').textContent=`Landmark bearing: ${Math.round(S.landmarkBearing)}° ${bearingLabel(S.landmarkBearing)}`;
-    document.getElementById('ltb-desc').textContent=`Search zone narrowed along bearing line`;
-    // Bar landmark marker at 100% (target dist)
-    document.getElementById('landmark-dist-marker').style.display='';
-    document.getElementById('landmark-dist-marker').style.left='99%';
-  }
-
-  document.getElementById('bar-label-min').textContent=Math.max(0,S.typicalDist-z.radiusLong)+'y';
-  document.getElementById('bar-label-center').textContent=`TARGET ${S.typicalDist}y`;
-  document.getElementById('bar-label-max').textContent=(S.typicalDist+z.radiusLong)+'y';
-  document.getElementById('zone-min-marker').style.left=`${Math.round((Math.max(0,S.typicalDist-z.radiusLong)/S.typicalDist)*100)}%`;
-  document.getElementById('zone-max-marker').style.left=`${Math.min(100,Math.round(((S.typicalDist+z.radiusLong)/S.typicalDist)*100))}%`;
-  if(S.smartZoneEnabled&&S.smartZone){
-    const sd=S.smartZone.dist,rL=S.smartZone.radiusLong;
-    document.getElementById('smart-min-marker').style.display='';
-    document.getElementById('smart-max-marker').style.display='';
-    document.getElementById('smart-min-marker').style.left=`${Math.round((Math.max(0,sd-rL)/S.typicalDist)*100)}%`;
-    document.getElementById('smart-max-marker').style.left=`${Math.min(100,Math.round(((sd+rL)/S.typicalDist)*100))}%`;
-  }
-
-  const lateralDesc=S.lateral==='straight'?'center of line':`~${Math.abs(z.lateralYards)}yds ${S.lateral} of line`;
-  const shapeDesc=S.shape==='straight'?'':S.shape==='slight'?' (slight curve)':S.shape==='hook'?' (hook/draw)':' (big miss)';
-  const landmarkDesc=S.landmarkBearing!==null?` · along ${Math.round(S.landmarkBearing)}° ${bearingLabel(S.landmarkBearing)} bearing`:'';
-  document.getElementById('zone-hint').textContent=`Look ${lateralDesc}${shapeDesc}${landmarkDesc}`;
-
-  // Pills
-  const pills=document.getElementById('info-pills');
-  pills.innerHTML='';
-  [S.club.label,S.typicalDist+'y',S.lateral,S.shape].forEach(t=>{
-    const p=document.createElement('span');p.className='pill';p.textContent=t;pills.appendChild(p);
-  });
-  if(S.landmarkBearing!==null){
-    const p=document.createElement('span');p.className='pill landmark';
-    p.textContent=`🌳 ${Math.round(S.landmarkBearing)}° ${bearingLabel(S.landmarkBearing)}`;pills.appendChild(p);
-  }
-
-  buildFoundDirRow();
-  placeHitMarker();
-  drawAllZones();
+// Go
+function go(){
+  if(!S.curPos)return;
+  S.zone=ballZone(S.dist,S.lat,S.shape);S.smartZone=compSZ(S.club.l,S.lat,S.shape);
+  S.hitPt={...S.curPos};S.phase='tracking';stopComp();
+  if(S.holePinLL)S.holeBear=brng(S.hitPt.lat,S.hitPt.lon,S.holePinLL.lat,S.holePinLL.lon);
+  if(S.lm)S.lmBear=brng(S.hitPt.lat,S.hitPt.lon,S.lm.lat,S.lm.lon);
+  document.getElementById('setup').classList.add('hid');document.getElementById('track').classList.remove('hid');
+  const pb=document.getElementById('phase-badge');pb.textContent='TRACKING';pb.classList.add('active');
+  document.getElementById('next-hole-btn').style.display='';
+  const z=S.zone,az=S.smartOn&&S.smartZone?S.smartZone:z,td=S.smartOn&&S.smartZone?S.smartZone.dist:S.dist;
+  const tMin=Math.max(0,td-az.rL),tMax=td+az.rL;
+  const hA=S.holeBear!==null,lA=S.lmBear!==null;
+  const narrowW=hA?Math.max(4,Math.round(z.rW*.4)):lA?Math.max(4,Math.round(z.rW*.45)):az.rW;
+  document.getElementById('zone-lbl').textContent=hA?'🚩 Hole Zone Active':lA?'🌳 Landmark Zone Active':S.smartOn&&S.smartZone?'⚡ Smart Zone Active':'Search Zone';
+  document.getElementById('z-range').textContent=`${Math.max(0,S.dist-z.rL)}–${S.dist+z.rL}`;
+  document.getElementById('z-width').textContent=`±${narrowW}`;
+  document.getElementById('z-width').className='zn'+(hA?' ho':lA?' lmc':S.smartOn&&S.smartZone?' sm':'');
+  document.getElementById('bl-min').textContent=Math.max(0,S.dist-z.rL)+'y';
+  document.getElementById('bl-ctr').textContent=`TARGET ${S.dist}y`;
+  document.getElementById('bl-max').textContent=(S.dist+z.rL)+'y';
+  document.getElementById('zm1').style.left=`${Math.round((Math.max(0,S.dist-z.rL)/S.dist)*100)}%`;
+  document.getElementById('zm2').style.left=`${Math.min(100,Math.round(((S.dist+z.rL)/S.dist)*100))}%`;
+  if(S.smartOn&&S.smartZone){const sd=S.smartZone.dist,rl=S.smartZone.rL;['szm1','szm2'].forEach(id=>document.getElementById(id).style.display='');document.getElementById('szm1').style.left=`${Math.round((Math.max(0,sd-rl)/S.dist)*100)}%`;document.getElementById('szm2').style.left=`${Math.min(100,Math.round(((sd+rl)/S.dist)*100))}%`}
+  if(hA){document.getElementById('hzm').style.display='';document.getElementById('hzm').style.left='99%';document.getElementById('hbadge').classList.add('v');document.getElementById('hb-t').textContent=`Hole ${S.holeNum} · ${Math.round(S.holeBear)}° ${card(S.holeBear)}`;document.getElementById('hb-d').textContent=`Fairway overlay active · ${S.fw}y wide`}
+  if(lA){document.getElementById('lzm').style.display='';document.getElementById('lzm').style.left='99%';document.getElementById('lmbadge').classList.add('v');document.getElementById('lmb-t').textContent=`Landmark ${Math.round(S.lmBear)}° ${card(S.lmBear)}`;document.getElementById('lmb-d').textContent='Zone narrowed along bearing'}
+  const latD=S.lat==='straight'?'center of line':`~${Math.abs(z.latY)}yds ${S.lat} of line`;
+  const shD=S.shape==='straight'?'':S.shape==='slight'?' (slight)':S.shape==='hook'?' (hook/draw)':' (big miss)';
+  const dirD=hA?` along hole ${S.holeNum} bearing`:lA?` along landmark ${Math.round(S.lmBear)}°`:'';
+  document.getElementById('zone-hint').textContent=`Look ${latD}${shD}${dirD}`;
+  const pills=document.getElementById('pills');pills.innerHTML='';
+  [S.club.l,S.dist+'y',S.lat,S.shape].forEach(t=>{const p=document.createElement('span');p.className='pill';p.textContent=t;pills.appendChild(p)});
+  if(S.course){const p=document.createElement('span');p.className='pill ho';p.textContent=`🚩 Hole ${S.holeNum}`;pills.appendChild(p)}
+  if(lA){const p=document.createElement('span');p.className='pill lmc';p.textContent=`🌳 ${Math.round(S.lmBear)}° ${card(S.lmBear)}`;pills.appendChild(p)}
+  buildFDir();placeHit();drawZones();
   document.getElementById('map-wrap').classList.add('expanded');
   setTimeout(()=>map.invalidateSize(),450);
-
-  S.watchId=navigator.geolocation.watchPosition(pos=>{
-    S.currentPos={lat:pos.coords.latitude,lon:pos.coords.longitude};
-    updateTracking();
-  },()=>{},{enableHighAccuracy:true});
+  S.watchId=navigator.geolocation.watchPosition(pos=>{S.curPos={lat:pos.coords.latitude,lon:pos.coords.longitude};updTrack()},()=>{},{enableHighAccuracy:true})
 }
 
-function placeHitMarker(){
-  if(!S.hitPoint)return;
-  if(hitMarker)hitMarker.remove();
-  hitMarker=L.marker([S.hitPoint.lat,S.hitPoint.lon],{icon:makeIcon('📍',30)}).bindPopup('<b>Hit Point</b>').addTo(map);
-}
-
-// ═══════════════════════════════════
-//  TRACKING UPDATE
-// ═══════════════════════════════════
-function updateTracking(){
-  updatePosMarker();
-  if(S.currentPos&&!map.getBounds().contains([S.currentPos.lat,S.currentPos.lon]))
-    map.panTo([S.currentPos.lat,S.currentPos.lon]);
-  if(!S.hitPoint||!S.currentPos)return;
-
-  const dist=haversine(S.hitPoint.lat,S.hitPoint.lon,S.currentPos.lat,S.currentPos.lon);
-  const z=S.zone;
-  const az=S.smartZoneEnabled&&S.smartZone?S.smartZone:z;
-  const tDist=S.smartZoneEnabled&&S.smartZone?S.smartZone.dist:S.typicalDist;
-  const tMin=Math.max(0,tDist-az.radiusLong);
-  const tMax=tDist+az.radiusLong;
-
+// Tracking
+function updTrack(){
+  updPos();if(S.curPos&&!map.getBounds().contains([S.curPos.lat,S.curPos.lon]))map.panTo([S.curPos.lat,S.curPos.lon]);
+  if(!S.hitPt||!S.curPos)return;
+  const dist=hav(S.hitPt.lat,S.hitPt.lon,S.curPos.lat,S.curPos.lon),z=S.zone,az=S.smartOn&&S.smartZone?S.smartZone:z,td=S.smartOn&&S.smartZone?S.smartZone.dist:S.dist,tMin=Math.max(0,td-az.rL),tMax=td+az.rL;
   document.getElementById('track-big').textContent=Math.round(dist);
-  document.getElementById('bar-fill').style.width=Math.min(100,(dist/S.typicalDist)*100)+'%';
-
-  const inZone=dist>=tMin-3&&dist<=tMax+3;
-  const over=dist>tMax+3;
-  document.getElementById('bar-fill').style.background=inZone?'var(--green-bright)':over?'var(--red)':'var(--yellow)';
-  document.getElementById('track-big').style.color=inZone?'var(--green-bright)':over?'var(--red)':'var(--green-soft)';
-
-  const badge=document.getElementById('status-badge');
-  if(inZone){badge.textContent='🎯 YOU\'RE IN THE SEARCH ZONE';badge.className='in-zone';}
-  else if(over){badge.textContent='⚠️ TOO FAR — walk back';badge.className='overshoot';}
-  else{badge.textContent=`▶ Keep walking… (${Math.round(tMin-dist)}y to zone)`;badge.className='undershoot';}
-
-  drawAllZones();
+  document.getElementById('bar-fill').style.width=Math.min(100,(dist/S.dist)*100)+'%';
+  const inZ=dist>=tMin-3&&dist<=tMax+3,ov=dist>tMax+3;
+  document.getElementById('bar-fill').style.background=inZ?'var(--bright)':ov?'var(--red)':'var(--yellow)';
+  document.getElementById('track-big').style.color=inZ?'var(--bright)':ov?'var(--red)':'var(--soft)';
+  const b=document.getElementById('stat-badge');
+  if(inZ){b.textContent='🎯 YOU\'RE IN THE SEARCH ZONE';b.className='in'}
+  else if(ov){b.textContent='⚠️ TOO FAR — walk back';b.className='ov'}
+  else{b.textContent=`▶ Keep walking… (${Math.round(tMin-dist)}y to zone)`;b.className='un'}
+  drawZones()
 }
 
-// ═══════════════════════════════════
-//  LOG FOUND
-// ═══════════════════════════════════
-function buildRecord(foundDist,foundDir){
-  return{id:Date.now().toString(),date:new Date().toLocaleDateString(),
-    club:S.club.label,intendedDist:S.typicalDist,lateral:S.lateral,shape:S.shape,
-    foundDist,foundDir,foundLateralOffset:(foundDir==='left'?-1:foundDir==='right'?1:0)*Math.abs(foundDist-S.typicalDist)*.2,
-    delta:foundDist-S.typicalDist,hadLandmark:S.landmarkBearing!==null};
-}
-function showFoundMsg(t){const el=document.getElementById('found-msg');el.textContent=t;setTimeout(()=>el.textContent='',3000);}
-function logFoundGPS(){
-  if(!S.currentPos||!S.hitPoint){showFoundMsg('⚠️ No GPS position');return;}
-  const dist=Math.round(haversine(S.hitPoint.lat,S.hitPoint.lon,S.currentPos.lat,S.currentPos.lon));
-  addShotRecord(buildRecord(dist,S.foundDir));
-  buildClubGrid(); updateLearnedDistHint(); updateSmartZoneCard();
-  showFoundMsg(`✅ Saved! ${dist} yds ${S.foundDir==='center'?'on line':S.foundDir}`);
-}
-function saveFoundManual(){
-  const val=parseInt(document.getElementById('found-manual-dist').value);
-  if(!val||val<1||val>400){showFoundMsg('⚠️ Enter a valid distance (1–400 yds)');return;}
-  addShotRecord(buildRecord(val,S.foundDir));
-  document.getElementById('found-manual-dist').value='';
-  buildClubGrid(); updateLearnedDistHint(); updateSmartZoneCard();
-  showFoundMsg(`✅ Saved! ${val} yds ${S.foundDir==='center'?'on line':S.foundDir}`);
-}
+// Log found
+function mkRec(fd,fdir){return{id:Date.now().toString(),date:new Date().toLocaleDateString(),club:S.club.l,intD:S.dist,lat:S.lat,shape:S.shape,foundDist:fd,foundDir:fdir,flo:(fdir==='left'?-1:fdir==='right'?1:0)*Math.abs(fd-S.dist)*.2,delta:fd-S.dist,hH:S.holeBear!==null,hL:S.lmBear!==null,hole:S.course?S.holeNum:null,course:S.course?S.course.name:null}}
+function showFM(t){const el=document.getElementById('found-msg');el.textContent=t;setTimeout(()=>el.textContent='',3000)}
+function logGPS(){if(!S.curPos||!S.hitPt){showFM('⚠️ No GPS');return}const d=Math.round(hav(S.hitPt.lat,S.hitPt.lon,S.curPos.lat,S.curPos.lon));addShot(mkRec(d,S.foundDir));buildGrid();updHint();updSZ();showFM(`✅ Saved! ${d} yds`)}
+function logManual(){const v=parseInt(document.getElementById('found-dist').value);if(!v||v<1||v>400){showFM('⚠️ Enter a valid distance');return}addShot(mkRec(v,S.foundDir));document.getElementById('found-dist').value='';buildGrid();updHint();updSZ();showFM(`✅ Saved! ${v} yds`)}
 
-// ═══════════════════════════════════
-//  UI BUILDERS
-// ═══════════════════════════════════
-function buildClubGrid(){
-  const grid=document.getElementById('club-grid');
-  grid.innerHTML='';
-  const h=loadHistory();
-  CLUBS.forEach(c=>{
-    const hasData=(h[c.label]||[]).filter(s=>s.foundDist!=null).length>0;
-    const btn=document.createElement('button');
-    btn.className='club-btn'+(c.label===S.club.label?' active':'')+(hasData?' has-data':'');
-    btn.textContent=c.label; btn.onclick=()=>selectClub(c);
-    grid.appendChild(btn);
-  });
+// UI builders
+function buildGrid(){
+  const grid=document.getElementById('club-grid');grid.innerHTML='';const h=lH();
+  CLUBS.forEach(c=>{const hd=(h[c.l]||[]).filter(s=>s.foundDist!=null).length>0;const btn=document.createElement('button');btn.className='cbtn'+(c.l===S.club.l?' active':'')+(hd?' hd':'');btn.textContent=c.l;btn.onclick=()=>selClub(c);grid.appendChild(btn)})
 }
-function buildToggleRow(id,items,key){
-  const row=document.getElementById(id); row.innerHTML='';
-  items.forEach(item=>{
-    const btn=document.createElement('button');
-    btn.className='toggle-btn'+(S[key]===item.val?' active':'');
-    btn.textContent=item.label; btn.dataset.val=item.val;
-    btn.onclick=()=>{S[key]=item.val;row.querySelectorAll('.toggle-btn').forEach(b=>b.classList.toggle('active',b.dataset.val===item.val));};
-    row.appendChild(btn);
-  });
-}
-function buildFoundDirRow(){
-  const row=document.getElementById('found-direction-row'); row.innerHTML='';
-  FOUND_DIRS.forEach(d=>{
-    const btn=document.createElement('button');
-    btn.className='found-dir-btn'+(S.foundDir===d.val?' active':'');
-    btn.textContent=d.label; btn.dataset.val=d.val;
-    btn.onclick=()=>{S.foundDir=d.val;row.querySelectorAll('.found-dir-btn').forEach(b=>b.classList.toggle('active',b.dataset.val===d.val));};
-    row.appendChild(btn);
-  });
-}
-function selectClub(c){
-  S.club=c; S.typicalDist=c.dist;
-  document.getElementById('dist-display').textContent=c.dist;
-  document.querySelectorAll('.club-btn').forEach(b=>b.classList.toggle('active',b.textContent===c.label));
-  updateSmartZoneCard(); updateLearnedDistHint();
-}
-function adjustDist(d){S.typicalDist=Math.max(10,S.typicalDist+d);document.getElementById('dist-display').textContent=S.typicalDist;}
+function buildTog(id,items,key){const row=document.getElementById(id);row.innerHTML='';items.forEach(item=>{const btn=document.createElement('button');btn.className='tog'+(S[key]===item.v?' active':'');btn.textContent=item.t;btn.dataset.v=item.v;btn.onclick=()=>{S[key]=item.v;row.querySelectorAll('.tog').forEach(b=>b.classList.toggle('active',b.dataset.v===item.v))};row.appendChild(btn)})}
+function buildFDir(){const row=document.getElementById('found-dir-row');row.innerHTML='';FDIRS.forEach(d=>{const btn=document.createElement('button');btn.className='fdbtn'+(S.foundDir===d.v?' active':'');btn.textContent=d.t;btn.dataset.v=d.v;btn.onclick=()=>{S.foundDir=d.v;row.querySelectorAll('.fdbtn').forEach(b=>b.classList.toggle('active',b.dataset.v===d.v))};row.appendChild(btn)})}
+function selClub(c){S.club=c;S.dist=c.d;document.getElementById('dist-v').textContent=c.d;document.querySelectorAll('.cbtn').forEach(b=>b.classList.toggle('active',b.textContent===c.l));updSZ();updHint()}
+function adjD(d){S.dist=Math.max(10,S.dist+d);document.getElementById('dist-v').textContent=S.dist}
 
-// ═══════════════════════════════════
-//  HISTORY
-// ═══════════════════════════════════
-function renderHistory(){
-  const h=loadHistory(),content=document.getElementById('history-content');
-  content.innerHTML='';
+// History
+function renderH(){
+  const h=lH(),content=document.getElementById('hist-content');content.innerHTML='';
   const clubs=Object.keys(h).filter(c=>h[c].length>0);
-  if(!clubs.length){content.innerHTML='<div id="history-empty">No shots logged yet.</div>';return;}
+  if(!clubs.length){content.innerHTML='<div id="hist-empty">No shots logged yet.</div>';return}
   clubs.forEach(cl=>{
-    const shots=h[cl].filter(s=>s.foundDist!=null);
-    if(!shots.length)return;
-    const stats=getLearnedStats(cl);
-    const sec=document.createElement('div'); sec.className='card';
-    sec.innerHTML=`<div class="history-club-header"><span class="history-club-name">${cl}</span><span class="history-club-count">${shots.length} shot${shots.length>1?'s':''}</span></div>
-    ${stats?`<div class="history-stats-row">
-      <div class="hstat"><div class="hstat-num pos">${stats.avgDist}</div><div class="hstat-label">Avg Dist</div></div>
-      <div class="hstat"><div class="hstat-num ${Math.abs(stats.avgLat)>5?'warn':'pos'}">${stats.avgLat>0?'+':''}${stats.avgLat}</div><div class="hstat-label">Avg Lateral</div></div>
-      <div class="hstat"><div class="hstat-num warn">±${stats.stdDev}</div><div class="hstat-label">Std Dev</div></div>
-    </div>`:''}
-    <div class="history-shots" id="shots-${cl}"></div>`;
+    const shots=h[cl].filter(s=>s.foundDist!=null);if(!shots.length)return;
+    const st=gStats(cl);const sec=document.createElement('div');sec.className='card';
+    sec.innerHTML=`<div class="hch"><span class="hcn">${cl}</span><span class="hcc">${shots.length} shot${shots.length>1?'s':''}</span></div>${st?`<div class="hsr"><div class="hs"><div class="hn p">${st.avgDist}</div><div class="hl">Avg Dist</div></div><div class="hs"><div class="hn ${Math.abs(st.avgLat)>5?'w':'p'}">${st.avgLat>0?'+':''}${st.avgLat}</div><div class="hl">Avg Lateral</div></div><div class="hs"><div class="hn w">±${st.stdDev}</div><div class="hl">Std Dev</div></div></div>`:''}<div class="shots" id="sh-${cl}"></div>`;
     content.appendChild(sec);
-    shots.forEach(s=>{
-      const row=document.createElement('div'); row.className='history-shot-row';
-      const d=s.delta>=0?`+${s.delta}`:`${s.delta}`;
-      row.innerHTML=`<span class="shot-date">${s.date}</span>
-        <span class="shot-detail">${s.foundDist}y · ${s.foundDir} · ${s.shape}${s.hadLandmark?' 🌳':''}</span>
-        <span class="shot-delta ${Math.abs(s.delta)<=10?'pos':'neg'}">${d}y</span>
-        <button class="shot-delete" onclick="deleteShotRecord('${cl}','${s.id}')">✕</button>`;
-      document.getElementById(`shots-${cl}`).appendChild(row);
-    });
-  });
-}
-function toggleHistoryPanel(){
-  S.showingHistory=!S.showingHistory;
-  document.getElementById('history-panel').classList.toggle('visible',S.showingHistory);
-  document.getElementById('setup-panel').classList.toggle('hidden-panel',S.showingHistory);
-  if(S.phase==='tracking')document.getElementById('tracking-panel').classList.toggle('hidden-panel',S.showingHistory);
-  document.querySelector('.hdr-btn').textContent=S.showingHistory?'◀ Back':'📊 History';
-  if(S.showingHistory)renderHistory();
+    shots.forEach(s=>{const row=document.createElement('div');row.className='srow';const d=s.delta>=0?`+${s.delta}`:`${s.delta}`,ex=[s.hH?'🚩':'',s.hL?'🌳':''].filter(Boolean).join('');row.innerHTML=`<span class="sdate">${s.date}</span><span class="sdet">${s.foundDist}y · ${s.foundDir} · ${s.shape}${ex?' '+ex:''}</span><span class="sdelta ${Math.abs(s.delta)<=10?'p':'n'}">${d}y</span><button class="sdel" onclick="delShot('${cl}','${s.id}')">✕</button>`;document.getElementById(`sh-${cl}`).appendChild(row)})
+  })
 }
 
-// ═══════════════════════════════════
-//  MAP EXPAND / RESET
-// ═══════════════════════════════════
-function toggleMapExpand(){
-  S.mapExpanded=!S.mapExpanded;
-  document.getElementById('map-wrap').classList.toggle('expanded',S.mapExpanded);
-  document.getElementById('map-expand-btn').textContent=S.mapExpanded?'⛶ Collapse':'⛶ Expand';
-  setTimeout(()=>map.invalidateSize(),420);
-}
-function handleReset(){
-  if(S.watchId!==null)navigator.geolocation.clearWatch(S.watchId);
-  stopCompass();
-  S={...S,phase:'setup',hitPoint:null,zone:null,smartZone:null,watchId:null,
-    gpsStatus:'idle',currentPos:null,smartZoneEnabled:false,
-    landmark:null,landmarkBearing:null,landmarkTapping:false,compassBearing:null};
-  document.getElementById('tracking-panel').classList.add('hidden-panel');
-  document.getElementById('setup-panel').classList.remove('hidden-panel');
-  document.getElementById('phase-badge').textContent='SETUP';
-  document.getElementById('phase-badge').className='';
-  document.getElementById('map-wrap').classList.remove('expanded');
-  document.getElementById('go-btn').disabled=true;
-  document.getElementById('smart-zone-check').checked=false;
-  document.getElementById('zone-range').className='zone-stat-num';
-  document.getElementById('zone-width').className='zone-stat-num';
-  document.getElementById('zone-card-label').textContent='Search Zone';
-  document.getElementById('smart-min-marker').style.display='none';
-  document.getElementById('smart-max-marker').style.display='none';
-  document.getElementById('landmark-dist-marker').style.display='none';
-  document.getElementById('landmark-tracking-badge').classList.remove('visible');
-  document.getElementById('landmark-set-row').classList.remove('visible');
-  document.getElementById('landmark-clear-btn').style.display='none';
-  document.getElementById('lm-tap-btn').textContent='📍 Tap Map to Place Landmark';
-  document.getElementById('lm-tap-btn').classList.remove('active');
-  document.getElementById('lm-tap-btn').onclick=startLandmarkTap;
-  document.getElementById('lm-tap-status').textContent='Tap the button, then tap your landmark on the map above';
-  document.getElementById('compass-status').textContent='Point your phone toward the landmark, then lock';
-  document.getElementById('compass-status').className='';
-  document.getElementById('compass-bearing-display').textContent='—°';
-  document.getElementById('compass-needle').style.transform='translateX(-50%) translateY(-100%) rotate(0deg)';
-  document.getElementById('map-wrap').classList.remove('landmark-selecting');
-  document.getElementById('landmark-tap-hint').style.display='none';
-  setGpsMsg('Tap to lock in your position before you walk','');
-  setMapStatus('📍 Waiting for GPS…','');
-  [hitMarker,landmarkMarker,posMarker,searchEllipse,smartEllipse,landmarkEllipse,bearingLine,aimLine].forEach(l=>{if(l)l.remove();});
-  hitMarker=posMarker=landmarkMarker=searchEllipse=smartEllipse=landmarkEllipse=bearingLine=aimLine=null;
-  map.setView([36.1,-86.7],16);
-  setTimeout(()=>map.invalidateSize(),450);
-  updateSmartZoneCard(); updateLearnedDistHint();
+// Panel toggles
+function toggleCrs(){S.showCrs=!S.showCrs;document.getElementById('crs-panel').classList.toggle('v',S.showCrs);if(S.showCrs){document.getElementById('setup').classList.add('hid');document.getElementById('track').classList.add('hid');document.getElementById('hist-panel').classList.remove('v');S.showHist=false;document.getElementById('hist-tab').classList.remove('on')}else{if(S.phase==='setup')document.getElementById('setup').classList.remove('hid');if(S.phase==='tracking')document.getElementById('track').classList.remove('hid')};document.getElementById('crs-tab').classList.toggle('on',S.showCrs)}
+function toggleHist(){S.showHist=!S.showHist;document.getElementById('hist-panel').classList.toggle('v',S.showHist);if(S.showHist){document.getElementById('setup').classList.add('hid');document.getElementById('track').classList.add('hid');document.getElementById('crs-panel').classList.remove('v');S.showCrs=false;document.getElementById('crs-tab').classList.remove('on');renderH()}else{if(S.phase==='setup')document.getElementById('setup').classList.remove('hid');if(S.phase==='tracking')document.getElementById('track').classList.remove('hid')};document.getElementById('hist-tab').classList.toggle('on',S.showHist)}
+function toggleExp(){S.mapExp=!S.mapExp;document.getElementById('map-wrap').classList.toggle('expanded',S.mapExp);document.getElementById('map-expand-btn').textContent=S.mapExp?'⛶ Collapse':'⛶ Expand';setTimeout(()=>map.invalidateSize(),420)}
+
+// Reset
+function reset(){
+  if(S.watchId!==null)navigator.geolocation.clearWatch(S.watchId);stopComp();
+  S={...S,phase:'setup',hitPt:null,zone:null,smartZone:null,watchId:null,gpsOk:false,curPos:null,smartOn:false,lm:null,lmBear:null,lmTap:false,compBear:null,pinTap:false,holeBear:null};
+  document.getElementById('track').classList.add('hid');document.getElementById('setup').classList.remove('hid');
+  document.getElementById('phase-badge').textContent='SETUP';document.getElementById('phase-badge').className='';
+  document.getElementById('map-wrap').classList.remove('expanded');document.getElementById('go-btn').disabled=true;
+  document.getElementById('sz-chk').checked=false;document.getElementById('z-range').className='zn';document.getElementById('z-width').className='zn';document.getElementById('zone-lbl').textContent='Search Zone';
+  ['szm1','szm2','hzm','lzm'].forEach(id=>document.getElementById(id).style.display='none');
+  document.getElementById('hbadge').classList.remove('v');document.getElementById('lmbadge').classList.remove('v');
+  document.getElementById('next-hole-btn').style.display='none';
+  document.getElementById('lm-set').classList.remove('v');document.getElementById('lm-clear').style.display='none';
+  document.getElementById('lm-tap-btn').textContent='📍 Tap Map to Place Landmark';document.getElementById('lm-tap-btn').classList.remove('tap');document.getElementById('lm-tap-btn').onclick=startLM;
+  document.getElementById('comp-st').textContent='Point phone toward landmark, then lock';document.getElementById('comp-st').className='';
+  document.getElementById('comp-val').textContent='—°';document.getElementById('comp-needle').style.transform='translateX(-50%) translateY(-100%) rotate(0deg)';
+  document.getElementById('map-hint').style.display='none';document.getElementById('map-wrap').style.cursor='';
+  setGM('Tap to lock in your position before you walk','');setMS('📍 Waiting for GPS…','');
+  [mHit,mPos,mLM,eStd,eSm,eHole,eLM,lBear,lAim,lFW].forEach(l=>{if(l)l.remove()});
+  mHit=mPos=mLM=eStd=eSm=eHole=eLM=lBear=lAim=lFW=null;
+  if(!S.holePinLL&&mPin){mPin.remove();mPin=null}
+  map.setView([36.1,-86.7],15);setTimeout(()=>map.invalidateSize(),450);updSZ();updHint()
 }
 
-// ═══════════════════════════════════
-//  INIT
-// ═══════════════════════════════════
-buildClubGrid();
-buildToggleRow('lateral-row',LATERALS,'lateral');
-buildToggleRow('shape-row',SHAPES,'shape');
-updateSmartZoneCard();
-updateLearnedDistHint();
+document.getElementById('crs-input').addEventListener('keydown',e=>{if(e.key==='Enter')searchC()});
+
+// Init
+buildGrid();buildTog('lat-row',LATS,'lat');buildTog('shape-row',SHAPES,'shape');updSZ();updHint();
+const lsv=lC();if(lsv?.c){S.course=lsv.c;S.holeNum=lsv.h||1;updCBar();loadPinData()}
 </script>
 </body>
 </html>
