@@ -493,18 +493,35 @@ async function nearbyC(){
   if(!navigator.geolocation){showCMsg('GPS not available');return}
   navigator.geolocation.getCurrentPosition(async pos=>{
     try{
-      const r=await fetch(`https://api.golfcourseapi.com/v1/courses/nearby?latitude=${pos.coords.latitude}&longitude=${pos.coords.longitude}`,{headers:{'Authorization':`Key ${API_KEY}`}});
-      const d=await r.json();setLoading(false);renderCrs(d.courses||[])
-    }catch(e){setLoading(false);showCMsg('Could not load courses')}
-  },()=>{setLoading(false);showCMsg('GPS error')})
+      const url=`https://api.golfcourseapi.com/v1/courses/nearby?latitude=${pos.coords.latitude}&longitude=${pos.coords.longitude}`;
+      const r=await fetch(url,{headers:{'Authorization':`Key ${API_KEY}`}});
+      const text=await r.text();
+      setLoading(false);
+      showDebug('NEARBY',r.status,url,text);
+      try{const d=JSON.parse(text);renderCrs(d.courses||d.data||[])}catch(e){showCMsg('Could not parse response — see debug below')}
+    }catch(e){setLoading(false);showCMsg('Network error: '+e.message)}
+  },()=>{setLoading(false);showCMsg('GPS error — allow location access')})
 }
 async function searchC(){
   const q=document.getElementById('crs-input').value.trim();if(!q)return;
   setLoading(true);document.getElementById('crs-results').innerHTML='';
   try{
-    const r=await fetch(`https://api.golfcourseapi.com/v1/search?search_query=${encodeURIComponent(q)}`,{headers:{'Authorization':`Key ${API_KEY}`}});
-    const d=await r.json();setLoading(false);renderCrs(d.courses||[])
-  }catch(e){setLoading(false);showCMsg('Search failed')}
+    const url=`https://api.golfcourseapi.com/v1/search?search_query=${encodeURIComponent(q)}`;
+    const r=await fetch(url,{headers:{'Authorization':`Key ${API_KEY}`}});
+    const text=await r.text();
+    setLoading(false);
+    showDebug('SEARCH',r.status,url,text);
+    try{const d=JSON.parse(text);renderCrs(d.courses||d.data||d.results||[])}catch(e){showCMsg('Could not parse response — see debug below')}
+  }catch(e){setLoading(false);showCMsg('Network error: '+e.message)}
+}
+function showDebug(label,status,url,body){
+  const el=document.getElementById('crs-results');
+  const preview=body.length>300?body.slice(0,300)+'…':body;
+  el.innerHTML=`<div style="background:#0f1a12;border:1px solid #854d0e;border-radius:8px;padding:10px;font-size:10px;color:#fbbf24;word-break:break-all">
+    <div style="font-weight:700;margin-bottom:4px">🔍 ${label} · HTTP ${status}</div>
+    <div style="color:#6b7280;margin-bottom:4px">${url}</div>
+    <div style="color:#e2e8f0;white-space:pre-wrap">${preview}</div>
+  </div>`+el.innerHTML;
 }
 function setLoading(on){document.getElementById('crs-loading').style.display=on?'block':'none'}
 function showCMsg(m){document.getElementById('crs-results').innerHTML=`<div style="color:var(--red);text-align:center;padding:10px;font-size:11px">${m}</div>`}
