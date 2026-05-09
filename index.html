@@ -277,10 +277,30 @@ html,body{height:100%;background:var(--gd);color:var(--text);font-family:'DM San
   </div>
 
   <div id="setup">
+
+    <div class="card">
+      <button id="gps-btn" onclick="getGPS()">📍 Set Hitting Location</button>
+      <div id="gps-msg">Stand at your hitting spot and tap above</div>
+    </div>
+
+    <div class="card" id="pin-card">
+      <div class="pin-hdr">
+        <span class="pin-title">🚩 Hole Direction</span>
+        <button id="pin-clear" onclick="clearPin()">✕ Clear</button>
+      </div>
+      <button id="pin-tap-btn" onclick="startPin()">🗺 Tap Green/Pin on Map</button>
+      <div id="pin-status">Tap the green on the satellite map to set hole direction — saved permanently for this hole</div>
+      <div id="pin-saved">
+        <span>🚩</span>
+        <div><div id="pin-saved-t" style="font-size:11px;color:var(--hole);">Pin set</div><div id="pin-saved-s" style="font-size:9px;color:var(--muted);"></div></div>
+      </div>
+    </div>
+
     <div class="card">
       <div class="slbl">Club Selection</div>
       <div id="club-grid"></div>
     </div>
+
     <div class="card">
       <div class="slbl">Typical Distance (yards)</div>
       <div class="dist-row">
@@ -290,6 +310,7 @@ html,body{height:100%;background:var(--gd);color:var(--text);font-family:'DM San
       </div>
       <div id="lhint"></div>
     </div>
+
     <div class="card">
       <div class="slbl">Shot Direction</div>
       <div class="tog-row" id="lat-row"></div>
@@ -297,51 +318,13 @@ html,body{height:100%;background:var(--gd);color:var(--text);font-family:'DM San
       <div class="tog-row" id="shape-row"></div>
     </div>
 
-    <div class="card" id="pin-card">
-      <div class="pin-hdr">
-        <span class="pin-title">🚩 Hole Direction</span>
-        <button id="pin-clear" onclick="clearPin()">✕ Clear</button>
-      </div>
-      <button id="pin-tap-btn" onclick="startPin()">🗺 Tap Green/Pin on Map</button>
-      <div id="pin-status">Tap the green on the map to set hole direction — saved permanently for this hole</div>
-      <div id="pin-saved">
-        <span>🚩</span>
-        <div><div id="pin-saved-t" style="font-size:11px;color:var(--hole);">Pin set</div><div id="pin-saved-s" style="font-size:9px;color:var(--muted);"></div></div>
-      </div>
-      <div id="fw-row">
-        <span id="fw-lbl">Fairway width (yds)</span>
-        <button class="fw-btn" onclick="adjFW(-5)">−</button>
-        <div id="fw-val">30</div>
-        <button class="fw-btn" onclick="adjFW(5)">+</button>
-      </div>
-    </div>
-
     <div class="card" id="lm-card">
       <div class="lm-hdr">
-        <span class="lm-title">🌳 Landmark Direction</span>
+        <span class="lm-title">🌳 Shot Direction Landmark</span>
         <button id="lm-clear" onclick="clearLM()">✕ Clear</button>
       </div>
-      <div class="lm-tabs">
-        <button class="ltab active" id="lmt-map" onclick="setLTab('map')">🗺 Tap Map</button>
-        <button class="ltab" id="lmt-comp" onclick="setLTab('comp')">🧭 Compass</button>
-      </div>
-      <div id="lm-map-s" class="v">
-        <button id="lm-tap-btn" onclick="startLM()">📍 Tap Map to Place Landmark</button>
-        <div id="lm-tap-st">Tap the button, then tap your landmark on the map</div>
-      </div>
-      <div id="lm-comp-s">
-        <div id="comp-wrap">
-          <div id="comp-ring">
-            <span id="comp-n">N</span><span id="comp-s">S</span>
-            <span id="comp-e">E</span><span id="comp-w">W</span>
-            <div id="comp-needle"></div>
-          </div>
-          <div id="comp-val">—°</div><div id="comp-card">Point at landmark</div>
-        </div>
-        <div id="comp-err"></div>
-        <button id="comp-lock" onclick="lockComp()">🔒 Lock This Bearing</button>
-        <div id="comp-st">Point phone toward landmark, then lock</div>
-      </div>
+      <button id="lm-tap-btn" onclick="startLM()">📍 Tap Map to Place Landmark</button>
+      <div id="lm-tap-st">Tap a landmark your ball was heading toward on the map</div>
       <div id="lm-set">
         <span>🌳</span>
         <div id="lm-set-info" style="flex:1;font-size:11px;color:var(--lm);">—</div>
@@ -357,13 +340,7 @@ html,body{height:100%;background:var(--gd);color:var(--text);font-family:'DM San
       <div id="sz-ua"></div>
     </div>
 
-    <div class="card">
-      <div class="slbl">GPS — Stand at Your Hitting Spot</div>
-      <button id="gps-btn" onclick="getGPS()">📍 Get My Location</button>
-      <div id="gps-msg">Tap to lock in your position before you walk</div>
-    </div>
-
-    <button id="go-btn" disabled onclick="go()">GO FIND IT</button>
+    <button id="go-btn" disabled onclick="go()">🏌 FIND MY GOLF BALL</button>
   </div>
 
   <div id="track" class="hid">
@@ -467,38 +444,55 @@ function drawZones(){
   if(!S.hitPt||!S.zone)return;
   [eStd,eSm,eHole,eLM,lBear,lAim,lFW].forEach(l=>{if(l)l.remove()});
   eStd=eSm=eHole=eLM=lBear=lAim=lFW=null;
-  const b=movBear(),z=S.zone;
-  const fwd=dst(S.hitPt.lat,S.hitPt.lon,b,yM(S.dist)),ctr=dst(fwd[0],fwd[1],(b+90+360)%360,yM(z.latY));
-  const pts=ellPts(ctr[0],ctr[1],b,yM(z.rL),yM(z.rW));
-  eStd=L.polygon(pts,{color:'#f97316',fillColor:'#f97316',fillOpacity:.11,weight:2,dashArray:'6 4'}).bindPopup(`<b>Standard Zone</b><br>${Math.max(0,S.dist-z.rL)}–${S.dist+z.rL} yds`).addTo(map);
-  lAim=L.polyline([[S.hitPt.lat,S.hitPt.lon],ctr],{color:'#fff',weight:1.5,opacity:.2,dashArray:'4 6'}).addTo(map);
-  if(S.smartOn&&S.smartZone){const sz=S.smartZone,sf=dst(S.hitPt.lat,S.hitPt.lon,b,yM(sz.dist)),sc=dst(sf[0],sf[1],(b+90+360)%360,yM(sz.latY));eSm=L.polygon(ellPts(sc[0],sc[1],b,yM(sz.rL),yM(sz.rW)),{color:'#f59e0b',fillColor:'#f59e0b',fillOpacity:.14,weight:2.5}).bindPopup(`<b>⚡ Smart Zone</b>`).addTo(map)}
-  if(S.holeBear!==null){
-    const hb=S.holeBear,hFwd=dst(S.hitPt.lat,S.hitPt.lon,hb,yM(S.dist*1.5));
-    lBear=L.polyline([[S.hitPt.lat,S.hitPt.lon],hFwd],{color:'#a78bfa',weight:2,opacity:.6,dashArray:'8 5'}).addTo(map);
-    const fwPts=[];const steps=24;
-    for(let i=0;i<=steps;i++){const d=yM(i*(S.dist*1.5/steps)),p=dst(S.hitPt.lat,S.hitPt.lon,hb,d);fwPts.push(dst(p[0],p[1],(hb-90+360)%360,yM(S.fw/2)))}
-    for(let i=steps;i>=0;i--){const d=yM(i*(S.dist*1.5/steps)),p=dst(S.hitPt.lat,S.hitPt.lon,hb,d);fwPts.push(dst(p[0],p[1],(hb+90+360)%360,yM(S.fw/2)))}
-    lFW=L.polygon(fwPts,{color:'#a78bfa',fillColor:'#a78bfa',fillOpacity:.07,weight:1,dashArray:'3 5'}).addTo(map);
-    const hCtr=dst(S.hitPt.lat,S.hitPt.lon,hb,yM(S.dist));
-    eHole=L.polygon(ellPts(hCtr[0],hCtr[1],hb,yM(z.rL),yM(Math.max(4,Math.round(z.rW*.4)))),{color:'#a78bfa',fillColor:'#a78bfa',fillOpacity:.2,weight:2.5}).bindPopup(`<b>🚩 Hole Zone</b>`).addTo(map)
-  }
-  if(S.lmBear!==null){const lb=S.lmBear,re=dst(S.hitPt.lat,S.hitPt.lon,lb,yM(S.dist*1.3));L.polyline([[S.hitPt.lat,S.hitPt.lon],re],{color:'#38bdf8',weight:1.5,opacity:.6,dashArray:'8 5'}).addTo(map);const lc=dst(S.hitPt.lat,S.hitPt.lon,lb,yM(S.dist));eLM=L.polygon(ellPts(lc[0],lc[1],lb,yM(z.rL),yM(Math.max(4,Math.round(z.rW*.45)))),{color:'#38bdf8',fillColor:'#38bdf8',fillOpacity:.18,weight:2.5}).bindPopup(`<b>🌳 Landmark Zone</b>`).addTo(map)}
-  try{map.fitBounds(L.latLngBounds([[S.hitPt.lat,S.hitPt.lon],...pts]),{padding:[26,26]})}catch(e){}
+  const z=S.zone;
+  // Bearing priority: landmark > hole > movement
+  const primaryBear=S.lmBear!==null?S.lmBear:S.holeBear!==null?S.holeBear:movBear();
+  // No lateral offset when landmark/hole sets the direction
+  const latOff=(S.lmBear!==null||S.holeBear!==null)?0:z.latY;
+  // Smart zone distance
+  const activeDist=S.smartOn&&S.smartZone?S.smartZone.dist:S.dist;
+  const activeLong=S.smartOn&&S.smartZone?S.smartZone.rL:z.rL;
+  // Tighter lateral when direction is precisely known
+  const tightW=S.lmBear!==null?Math.max(4,Math.round(z.rW*0.35)):S.holeBear!==null?Math.max(5,Math.round(z.rW*0.45)):z.rW;
+  // Zone center
+  const fwd=dst(S.hitPt.lat,S.hitPt.lon,primaryBear,yM(activeDist));
+  const ctr=dst(fwd[0],fwd[1],(primaryBear+90+360)%360,yM(latOff));
+  // Zone 1 — tight projected zone (green, solid)
+  const innerPts=ellPts(ctr[0],ctr[1],primaryBear,yM(Math.round(activeLong*0.6)),yM(tightW));
+  eStd=L.polygon(innerPts,{color:'#4ade80',fillColor:'#4ade80',fillOpacity:.22,weight:2.5})
+    .bindPopup('<b>🎯 Projected Zone</b><br>Highest probability area').addTo(map);
+  // Zone 2 — wider search area (orange, dashed)
+  const outerPts=ellPts(ctr[0],ctr[1],primaryBear,yM(activeLong),yM(Math.round(tightW*2.2)));
+  eSm=L.polygon(outerPts,{color:'#f97316',fillColor:'#f97316',fillOpacity:.07,weight:1.5,dashArray:'6 4'})
+    .bindPopup('<b>🔍 Search Area</b><br>Full search boundary').addTo(map);
+  // Direction line — color shows what's driving it
+  const lineColor=S.lmBear!==null?'#38bdf8':S.holeBear!==null?'#a78bfa':'#ffffff';
+  const lineEnd=dst(S.hitPt.lat,S.hitPt.lon,primaryBear,yM(activeDist*1.4));
+  lAim=L.polyline([[S.hitPt.lat,S.hitPt.lon],lineEnd],{color:lineColor,weight:2,opacity:.5,dashArray:'8 5'}).addTo(map);
+  try{map.fitBounds(L.latLngBounds([[S.hitPt.lat,S.hitPt.lon],...outerPts]),{padding:[28,28]})}catch(e){}
 }
 
 // Course API
 // Normalize raw API object to consistent field names regardless of API variant
-function normCourse(c){
+function normCourse(c, userLat, userLon){
+  const lat=parseFloat(c.latitude||c.lat||0);
+  const lon=parseFloat(c.longitude||c.lon||c.lng||0);
+  // Compute distance in miles from user if we have coords
+  let distMi=c.distance_miles||c.distance_miles_away||null;
+  if(!distMi && userLat && userLon && lat && lon){
+    const R=3958.8, r=d=>d*Math.PI/180;
+    const a=Math.sin(r(lat-userLat)/2)**2+Math.cos(r(userLat))*Math.cos(r(lat))*Math.sin(r(lon-userLon)/2)**2;
+    distMi=R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+  }
   return {
     id:    c.id||c.club_id||c.clubId||c.course_id||c.courseId||null,
     name:  c.club_name||c.clubName||c.course_name||c.courseName||c.name||null,
     city:  c.city||null,
     state: c.state||null,
+    address: c.address1||c.address||null,
     holes: parseInt(c.number_of_holes||c.numberOfHoles||c.holes||18)||18,
-    lat:   parseFloat(c.latitude||c.lat||0),
-    lon:   parseFloat(c.longitude||c.lon||c.lng||0),
-    dist:  c.distance_miles||c.distance||null,
+    lat, lon,
+    dist:  distMi!=null ? parseFloat(distMi) : null,
     scorecard: c.scorecard||null,
   };
 }
@@ -523,44 +517,82 @@ async function nearbyC(){
   setLoading(true);document.getElementById('crs-results').innerHTML='';
   if(!navigator.geolocation){showCMsg('GPS not available');return}
   navigator.geolocation.getCurrentPosition(async pos=>{
-    const {latitude:lat,longitude:lon}=pos.coords;
-    const urls=[
+    const lat=pos.coords.latitude,lon=pos.coords.longitude;
+    // Try every known endpoint variant — show raw response for each attempt
+    const tries=[
       `https://api.golfcourseapi.com/v1/courses/nearby?latitude=${lat}&longitude=${lon}`,
-      `https://api.golfcourseapi.com/v1/courses?lat=${lat}&lng=${lon}&radius_km=25`,
-      `https://api.golfcourseapi.com/v1/clubs?lat=${lat}&lng=${lon}&radius_km=25`,
+      `https://api.golfcourseapi.com/v1/courses/nearby?lat=${lat}&lng=${lon}`,
+      `https://api.golfcourseapi.com/v1/courses?latitude=${lat}&longitude=${lon}`,
+      `https://api.golfcourseapi.com/v1/courses?lat=${lat}&lng=${lon}`,
+      `https://api.golfcourseapi.com/v1/search?search_query=golf&latitude=${lat}&longitude=${lon}`,
     ];
-    for(const url of urls){
-      try{
-        const {status,json}=await apiFetch(url);
-        if(json&&status===200){
-          const raw=extractCourses(json);
-          if(raw.length>0){setLoading(false);renderCrs(raw.map(normCourse));return}
-        }
-      }catch(e){}
-    }
+    const el=document.getElementById('crs-results');
+    el.innerHTML='';
     setLoading(false);
-    showCMsg('Nearby search unavailable — try searching by name instead');
-  },()=>{setLoading(false);showCMsg('GPS error — allow location access')})
+    for(const url of tries){
+      try{
+        const {status,text,json}=await apiFetch(url);
+        const preview=(text||'').slice(0,200);
+        const raw=json?extractCourses(json):[];
+        const statusColor=status===200?'#4ade80':'#f87171';
+        el.innerHTML+=`<div style="background:#0f1a12;border:1px solid #374151;border-radius:7px;padding:8px;font-size:9px;margin-bottom:5px;word-break:break-all">
+          <div style="color:${statusColor};font-weight:700">HTTP ${status} · ${raw.length} courses</div>
+          <div style="color:#6b7280;margin:2px 0">${url.replace('https://api.golfcourseapi.com','')}</div>
+          <div style="color:#9ca3af">${preview}</div>
+        </div>`;
+        if(json&&status===200&&raw.length>0){
+          showRawDebug(raw[0]);
+          renderCrs(raw.map(c=>normCourse(c,lat,lon)));
+          return;
+        }
+      }catch(e){
+        el.innerHTML+=`<div style="background:#0f1a12;border:1px solid #374151;border-radius:7px;padding:8px;font-size:9px;margin-bottom:5px;color:#f87171">
+          FETCH ERROR: ${e.message}
+        </div>`;
+      }
+    }
+  },()=>{setLoading(false);showCMsg('GPS error — allow location access')},{enableHighAccuracy:true,timeout:12000});
 }
 async function searchC(){
   const q=document.getElementById('crs-input').value.trim();if(!q)return;
   setLoading(true);document.getElementById('crs-results').innerHTML='';
-  const urls=[
-    `https://api.golfcourseapi.com/v1/search?search_query=${encodeURIComponent(q)}`,
-    `https://api.golfcourseapi.com/v1/courses?search=${encodeURIComponent(q)}`,
-    `https://api.golfcourseapi.com/v1/clubs?search=${encodeURIComponent(q)}`,
-  ];
-  for(const url of urls){
-    try{
-      const {status,json}=await apiFetch(url);
-      if(json&&status===200){
-        const raw=extractCourses(json);
-        if(raw.length>0){setLoading(false);renderCrs(raw.map(normCourse));return}
-      }
-    }catch(e){}
+  let uLat=null,uLon=null;
+  if(S.curPos){uLat=S.curPos.lat;uLon=S.curPos.lon;}
+  else if(navigator.geolocation){
+    await new Promise(res=>navigator.geolocation.getCurrentPosition(
+      p=>{uLat=p.coords.latitude;uLon=p.coords.longitude;res()},
+      ()=>res(),{timeout:5000,enableHighAccuracy:false}
+    ));
   }
-  setLoading(false);
-  showCMsg('No results found — try a different name');
+  // Only the /v1/search endpoint is confirmed working
+  try{
+    const url=`https://api.golfcourseapi.com/v1/search?search_query=${encodeURIComponent(q)}`;
+    const {status,json}=await apiFetch(url);
+    if(json&&status===200){
+      const raw=extractCourses(json);
+      if(raw.length>0){
+        showRawDebug(raw[0]);
+        setLoading(false);
+        renderCrs(raw.map(c=>normCourse(c,uLat,uLon)));
+        return;
+      }
+    }
+    setLoading(false);
+    showCMsg('No results — try a different spelling or nearby search');
+  }catch(e){
+    setLoading(false);
+    showCMsg('Search error: '+e.message);
+  }
+}
+function showRawDebug(raw){
+  // Show raw field names and values of first result so we can fix field mapping
+  const fields=Object.entries(raw).map(([k,v])=>
+    `<span style="color:#fbbf24">${k}</span>: <span style="color:#e2e8f0">${JSON.stringify(v)}</span>`
+  ).join('<br>');
+  const el=document.getElementById('crs-results');
+  el.innerHTML=`<div style="background:#0f1a12;border:1px solid #854d0e;border-radius:8px;padding:10px;font-size:9px;color:#9ca3af;margin-bottom:8px;max-height:160px;overflow-y:auto;word-break:break-all">
+    <div style="font-weight:700;color:#fbbf24;margin-bottom:4px">🔍 Raw API fields (first result)</div>${fields}
+  </div>`+el.innerHTML;
 }
 function setLoading(on){document.getElementById('crs-loading').style.display=on?'block':'none'}
 function showCMsg(m){document.getElementById('crs-results').innerHTML=`<div style="color:var(--red);text-align:center;padding:10px;font-size:11px">${m}</div>`}
@@ -568,14 +600,20 @@ function renderCrs(courses){
   const el=document.getElementById('crs-results');
   if(!courses.length){el.innerHTML='<div style="color:var(--muted);text-align:center;padding:10px;font-size:11px;font-style:italic">No courses found</div>';return}
   el.innerHTML='';
-  courses.slice(0,15).forEach(c=>{
+  const sorted=[...courses].sort((a,b)=>{
+    if(a.dist!=null&&b.dist!=null)return a.dist-b.dist;
+    if(a.dist!=null)return -1; if(b.dist!=null)return 1; return 0;
+  });
+  sorted.slice(0,15).forEach(c=>{
     const div=document.createElement('div');div.className='cri';
-    const name=c.name||'Unknown Course';
-    const loc=[c.city,c.state].filter(Boolean).join(', ');
-    const distStr=(c.dist&&!isNaN(parseFloat(c.dist)))?`${parseFloat(c.dist).toFixed(1)} mi · `:'';
-    div.innerHTML=`<div class="cri-name">${name}</div><div class="cri-det">${distStr}${loc}${loc?' · ':''}${c.holes} holes</div>`;
-    div.onclick=()=>selCrs(c);el.appendChild(div)
-  })
+    const name=c.name||'—';
+    const cityState=[c.city,c.state].filter(Boolean).join(', ');
+    const addrLine=c.address?(c.address+(cityState?', '+cityState:'')):cityState;
+    const distPart=(c.dist!=null&&!isNaN(c.dist))?'<span style="color:var(--bright);font-weight:700">'+c.dist.toFixed(1)+' mi</span>&nbsp;&middot;&nbsp;':'';
+    const holesTag=addrLine?' &middot; '+c.holes+' holes':c.holes+' holes';
+    div.innerHTML='<div class="cri-name">'+name+'</div><div class="cri-det">'+distPart+(addrLine||'')+holesTag+'</div>';
+    div.onclick=()=>selCrs(c);el.appendChild(div);
+  });
 }
 async function selCrs(c){
   // c is already normalized — use .name, .id, .lat, .lon, .holes
@@ -632,7 +670,7 @@ function startPin(){
   const hint=document.getElementById('map-hint');hint.style.display='block';hint.style.borderColor='var(--hole)';hint.style.color='var(--hole)';hint.textContent='🚩 Tap the green / pin';
   setMS('🚩 Tap green to set hole direction','pin')
 }
-function cancelPin(){S.pinTap=false;const btn=document.getElementById('pin-tap-btn');btn.textContent='🗺 Tap Green/Pin on Map';btn.classList.remove('tap');btn.onclick=startPin;document.getElementById('map-wrap').style.cursor='';document.getElementById('map-hint').style.display='none';setMS(S.gpsOk?'✅ GPS locked':'📍 Waiting for GPS…',S.gpsOk?'ok':'')}
+function cancelPin(){S.pinTap=false;const btn=document.getElementById('pin-tap-btn');btn.textContent='🗺 Tap Green/Pin on Map';btn.classList.remove('tap');btn.onclick=startPin;document.getElementById('map-wrap').style.cursor='';document.getElementById('map-hint').style.display='none';setMS(S.gpsOk?'✅ Hitting Point Set!':'📍 Waiting for GPS…',S.gpsOk?'ok':'')}
 function updPinUI(la,lo,saved){
   const sv=document.getElementById('pin-saved'),cl=document.getElementById('pin-clear');
   if(saved&&la){sv.classList.add('vis');document.getElementById('pin-saved-t').textContent=`Hole ${S.holeNum} pin saved`;document.getElementById('pin-saved-s').textContent='Tap map to reposition';cl.style.display='';setPinSt('✅ Saved — auto-aims next round too',true)}
@@ -643,16 +681,16 @@ function clearPin(){if(!S.course)return;dPin(S.course.id,S.holeNum);S.holePinLL=
 function adjFW(d){S.fw=Math.max(10,Math.min(80,S.fw+d));document.getElementById('fw-val').textContent=S.fw;if(S.course&&S.holePinLL)sPin(S.course.id,S.holeNum,S.holePinLL.lat,S.holePinLL.lon,S.fw)}
 
 // Landmark
-function setLTab(tab){S.lmTab=tab;document.getElementById('lmt-map').classList.toggle('active',tab==='map');document.getElementById('lmt-comp').classList.toggle('active',tab==='comp');document.getElementById('lm-map-s').classList.toggle('v',tab==='map');document.getElementById('lm-comp-s').classList.toggle('v',tab==='comp');if(tab==='comp')startComp();else stopComp()}
+function setLTab(tab){} // tabs removed
 function startLM(){
-  if(!S.curPos&&!S.hitPt){document.getElementById('lm-tap-st').textContent='Get GPS fix first';return}
+  if(!S.curPos&&!S.hitPt){document.getElementById('lm-tap-st').textContent='Set your hitting location first';return}
   S.lmTap=true;const btn=document.getElementById('lm-tap-btn');
-  btn.textContent='✕ Cancel';btn.classList.add('tap');btn.onclick=cancelLM;
+  btn.textContent='✕ Cancel — tap landmark on map';btn.classList.add('tap');btn.onclick=cancelLM;
   document.getElementById('map-wrap').style.cursor='crosshair';
-  const hint=document.getElementById('map-hint');hint.style.display='block';hint.style.borderColor='var(--lm)';hint.style.color='var(--lm)';hint.textContent='🌳 Tap to place landmark';
+  const hint=document.getElementById('map-hint');hint.style.display='block';hint.style.borderColor='var(--lm)';hint.style.color='var(--lm)';hint.textContent='🌳 Tap your landmark on the map';
   setMS('🌳 Tap to place landmark','lms')
 }
-function cancelLM(){S.lmTap=false;const btn=document.getElementById('lm-tap-btn');btn.textContent='📍 Tap Map to Place Landmark';btn.classList.remove('tap');btn.onclick=startLM;document.getElementById('map-wrap').style.cursor='';document.getElementById('map-hint').style.display='none';setMS(S.gpsOk?'✅ GPS locked':'📍 Waiting for GPS…',S.gpsOk?'ok':'')}
+function cancelLM(){S.lmTap=false;const btn=document.getElementById('lm-tap-btn');btn.textContent='📍 Tap Map to Place Landmark';btn.classList.remove('tap');btn.onclick=startLM;document.getElementById('map-wrap').style.cursor='';document.getElementById('map-hint').style.display='none';setMS(S.gpsOk?'✅ Hitting Point Set!':'📍 Waiting for GPS…',S.gpsOk?'ok':'')}
 function clearLM(){S.lm=null;S.lmBear=null;if(mLM){mLM.remove();mLM=null}document.getElementById('lm-set').classList.remove('v');document.getElementById('lm-clear').style.display='none';document.getElementById('lm-tap-st').textContent='Tap the button, then tap your landmark on the map';document.getElementById('comp-st').textContent='Point phone toward landmark, then lock';document.getElementById('comp-st').className=''}
 function setLMUI(b){document.getElementById('lm-set').classList.add('v');document.getElementById('lm-set-info').innerHTML=`<b>${Math.round(b)}° ${card(b)}</b> — landmark locked`;document.getElementById('lm-clear').style.display=''}
 function startComp(){document.getElementById('comp-err').textContent='';if(typeof DeviceOrientationEvent!=='undefined'&&typeof DeviceOrientationEvent.requestPermission==='function'){DeviceOrientationEvent.requestPermission().then(r=>{if(r==='granted')listenO();else document.getElementById('comp-err').textContent='Compass permission denied. Use Tap Map.'}).catch(()=>document.getElementById('comp-err').textContent='Could not access compass.')}else if(window.DeviceOrientationEvent)listenO();else document.getElementById('comp-err').textContent='No compass. Use Tap Map.'}
@@ -679,8 +717,14 @@ function getGPS(){
   setGM('🔄 Acquiring GPS…','');document.getElementById('gps-btn').disabled=true;
   navigator.geolocation.getCurrentPosition(pos=>{
     S.curPos={lat:pos.coords.latitude,lon:pos.coords.longitude};S.gpsOk=true;
-    setGM('✅ GPS Ready — stand at your hitting spot','ok');
-    document.getElementById('go-btn').disabled=false;document.getElementById('gps-btn').disabled=false;
+    const btn=document.getElementById('gps-btn');
+    btn.textContent='✅ Hitting Point Set!';
+    btn.style.background='rgba(74,222,128,.12)';
+    btn.style.color='var(--bright)';
+    btn.style.borderColor='var(--bright)';
+    btn.disabled=false;
+    setGM('','ok');
+    document.getElementById('go-btn').disabled=false;
     setMS('✅ GPS locked','ok');map.setView([S.curPos.lat,S.curPos.lon],18);updPos();
     if(S.lm)S.lmBear=brng(S.curPos.lat,S.curPos.lon,S.lm.lat,S.lm.lon);
     if(S.holePinLL)S.holeBear=brng(S.curPos.lat,S.curPos.lon,S.holePinLL.lat,S.holePinLL.lon)
@@ -783,25 +827,67 @@ function toggleExp(){S.mapExp=!S.mapExp;document.getElementById('map-wrap').clas
 
 // Reset
 function reset(){
-  if(S.watchId!==null)navigator.geolocation.clearWatch(S.watchId);stopComp();
-  S={...S,phase:'setup',hitPt:null,zone:null,smartZone:null,watchId:null,gpsOk:false,curPos:null,smartOn:false,lm:null,lmBear:null,lmTap:false,compBear:null,pinTap:false,holeBear:null};
-  document.getElementById('track').classList.add('hid');document.getElementById('setup').classList.remove('hid');
-  document.getElementById('phase-badge').textContent='SETUP';document.getElementById('phase-badge').className='';
-  document.getElementById('map-wrap').classList.remove('expanded');document.getElementById('go-btn').disabled=true;
-  document.getElementById('sz-chk').checked=false;document.getElementById('z-range').className='zn';document.getElementById('z-width').className='zn';document.getElementById('zone-lbl').textContent='Search Zone';
-  ['szm1','szm2','hzm','lzm'].forEach(id=>document.getElementById(id).style.display='none');
-  document.getElementById('hbadge').classList.remove('v');document.getElementById('lmbadge').classList.remove('v');
-  document.getElementById('next-hole-btn').style.display='none';
-  document.getElementById('lm-set').classList.remove('v');document.getElementById('lm-clear').style.display='none';
-  document.getElementById('lm-tap-btn').textContent='📍 Tap Map to Place Landmark';document.getElementById('lm-tap-btn').classList.remove('tap');document.getElementById('lm-tap-btn').onclick=startLM;
-  document.getElementById('comp-st').textContent='Point phone toward landmark, then lock';document.getElementById('comp-st').className='';
-  document.getElementById('comp-val').textContent='—°';document.getElementById('comp-needle').style.transform='translateX(-50%) translateY(-100%) rotate(0deg)';
-  document.getElementById('map-hint').style.display='none';document.getElementById('map-wrap').style.cursor='';
-  setGM('Tap to lock in your position before you walk','');setMS('📍 Waiting for GPS…','');
+  if(S.watchId!==null)navigator.geolocation.clearWatch(S.watchId);
+  stopComp();
+  // Clear all map layers
   [mHit,mPos,mLM,eStd,eSm,eHole,eLM,lBear,lAim,lFW].forEach(l=>{if(l)l.remove()});
   mHit=mPos=mLM=eStd=eSm=eHole=eLM=lBear=lAim=lFW=null;
-  if(!S.holePinLL&&mPin){mPin.remove();mPin=null}
-  map.setView([36.1,-86.7],15);setTimeout(()=>map.invalidateSize(),450);updSZ();updHint()
+  if(mPin){mPin.remove();mPin=null;}
+  // Reset state, preserve course/hole
+  S={...S,phase:'setup',hitPt:null,zone:null,smartZone:null,watchId:null,
+    gpsOk:false,curPos:null,smartOn:false,
+    lm:null,lmBear:null,lmTap:false,compBear:null,pinTap:false,holeBear:null};
+  // Reload saved pin for current hole
+  if(S.course) loadPinData();
+  // Panels
+  document.getElementById('track').classList.add('hid');
+  document.getElementById('setup').classList.remove('hid');
+  document.getElementById('phase-badge').textContent='SETUP';
+  document.getElementById('phase-badge').className='';
+  document.getElementById('map-wrap').classList.remove('expanded');
+  document.getElementById('map-hint').style.display='none';
+  document.getElementById('map-wrap').style.cursor='';
+  // GPS button
+  const gpsbtn=document.getElementById('gps-btn');
+  gpsbtn.textContent='📍 Set Hitting Location';
+  gpsbtn.style.background=''; gpsbtn.style.color='var(--bright)';
+  gpsbtn.style.borderColor='var(--bright)'; gpsbtn.disabled=false;
+  setGM('Stand at your hitting spot and tap above','');
+  // Pin button
+  const pinbtn=document.getElementById('pin-tap-btn');
+  pinbtn.textContent='🗺 Tap Green/Pin on Map';
+  pinbtn.classList.remove('tap'); pinbtn.onclick=startPin;
+  document.getElementById('pin-saved').classList.remove('vis');
+  document.getElementById('pin-clear').style.display='none';
+  setPinSt('Tap the green on the satellite map to set hole direction — saved permanently for this hole',false);
+  // Landmark button
+  const lmbtn=document.getElementById('lm-tap-btn');
+  lmbtn.textContent='📍 Tap Map to Place Landmark';
+  lmbtn.classList.remove('tap'); lmbtn.onclick=startLM;
+  document.getElementById('lm-set').classList.remove('v');
+  document.getElementById('lm-clear').style.display='none';
+  document.getElementById('lm-tap-st').textContent='Tap a landmark your ball was heading toward on the map';
+  // Go button
+  document.getElementById('go-btn').disabled=true;
+  document.getElementById('sz-chk').checked=false;
+  // Tracking display reset
+  ['szm1','szm2','hzm','lzm'].forEach(id=>document.getElementById(id).style.display='none');
+  document.getElementById('hbadge').classList.remove('v');
+  document.getElementById('lmbadge').classList.remove('v');
+  document.getElementById('next-hole-btn').style.display='none';
+  document.getElementById('track-big').textContent='—';
+  document.getElementById('track-big').style.color='var(--soft)';
+  document.getElementById('bar-fill').style.width='0%';
+  document.getElementById('stat-badge').textContent='Walk toward your shot…';
+  document.getElementById('stat-badge').className='';
+  document.getElementById('found-msg').textContent='';
+  document.getElementById('found-dist').value='';
+  document.getElementById('z-range').className='zn';
+  document.getElementById('z-width').className='zn';
+  document.getElementById('zone-lbl').textContent='Search Zone';
+  setMS('📍 Waiting for GPS…','');
+  setTimeout(()=>map.invalidateSize(),450);
+  updSZ(); updHint();
 }
 
 document.getElementById('crs-input').addEventListener('keydown',e=>{if(e.key==='Enter')searchC()});
