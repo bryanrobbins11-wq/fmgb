@@ -488,40 +488,79 @@ function drawZones(){
 }
 
 // Course API
+// Normalize raw API object to consistent field names regardless of API variant
+function normCourse(c){
+  return {
+    id:    c.id||c.club_id||c.clubId||c.course_id||c.courseId||null,
+    name:  c.club_name||c.clubName||c.course_name||c.courseName||c.name||null,
+    city:  c.city||null,
+    state: c.state||null,
+    holes: parseInt(c.number_of_holes||c.numberOfHoles||c.holes||18)||18,
+    lat:   parseFloat(c.latitude||c.lat||0),
+    lon:   parseFloat(c.longitude||c.lon||c.lng||0),
+    dist:  c.distance_miles||c.distance||null,
+    scorecard: c.scorecard||null,
+  };
+}
+// Extract array of courses from any response shape
+function extractCourses(d){
+  if(!d) return [];
+  if(Array.isArray(d)) return d;
+  for(const k of ['courses','data','results','clubs','items','records']){
+    if(Array.isArray(d[k])) return d[k];
+  }
+  if(d.id||d.clubId||d.club_id) return [d];
+  return [];
+}
+async function apiFetch(url){
+  const r=await fetch(url,{headers:{'Authorization':`Key ${API_KEY}`}});
+  const text=await r.text();
+  let json=null;
+  try{json=JSON.parse(text)}catch(e){}
+  return {status:r.status,text,json};
+}
 async function nearbyC(){
   setLoading(true);document.getElementById('crs-results').innerHTML='';
   if(!navigator.geolocation){showCMsg('GPS not available');return}
   navigator.geolocation.getCurrentPosition(async pos=>{
-    try{
-      const url=`https://api.golfcourseapi.com/v1/courses/nearby?latitude=${pos.coords.latitude}&longitude=${pos.coords.longitude}`;
-      const r=await fetch(url,{headers:{'Authorization':`Key ${API_KEY}`}});
-      const text=await r.text();
-      setLoading(false);
-      showDebug('NEARBY',r.status,url,text);
-      try{const d=JSON.parse(text);renderCrs(d.courses||d.data||[])}catch(e){showCMsg('Could not parse response — see debug below')}
-    }catch(e){setLoading(false);showCMsg('Network error: '+e.message)}
+    const {latitude:lat,longitude:lon}=pos.coords;
+    const urls=[
+      `https://api.golfcourseapi.com/v1/courses/nearby?latitude=${lat}&longitude=${lon}`,
+      `https://api.golfcourseapi.com/v1/courses?lat=${lat}&lng=${lon}&radius_km=25`,
+      `https://api.golfcourseapi.com/v1/clubs?lat=${lat}&lng=${lon}&radius_km=25`,
+    ];
+    for(const url of urls){
+      try{
+        const {status,json}=await apiFetch(url);
+        if(json&&status===200){
+          const raw=extractCourses(json);
+          if(raw.length>0){setLoading(false);renderCrs(raw.map(normCourse));return}
+        }
+      }catch(e){}
+    }
+    setLoading(false);
+    showCMsg('Nearby search unavailable — try searching by name instead');
   },()=>{setLoading(false);showCMsg('GPS error — allow location access')})
 }
 async function searchC(){
   const q=document.getElementById('crs-input').value.trim();if(!q)return;
   setLoading(true);document.getElementById('crs-results').innerHTML='';
-  try{
-    const url=`https://api.golfcourseapi.com/v1/search?search_query=${encodeURIComponent(q)}`;
-    const r=await fetch(url,{headers:{'Authorization':`Key ${API_KEY}`}});
-    const text=await r.text();
-    setLoading(false);
-    showDebug('SEARCH',r.status,url,text);
-    try{const d=JSON.parse(text);renderCrs(d.courses||d.data||d.results||[])}catch(e){showCMsg('Could not parse response — see debug below')}
-  }catch(e){setLoading(false);showCMsg('Network error: '+e.message)}
-}
-function showDebug(label,status,url,body){
-  const el=document.getElementById('crs-results');
-  const preview=body.length>300?body.slice(0,300)+'…':body;
-  el.innerHTML=`<div style="background:#0f1a12;border:1px solid #854d0e;border-radius:8px;padding:10px;font-size:10px;color:#fbbf24;word-break:break-all">
-    <div style="font-weight:700;margin-bottom:4px">🔍 ${label} · HTTP ${status}</div>
-    <div style="color:#6b7280;margin-bottom:4px">${url}</div>
-    <div style="color:#e2e8f0;white-space:pre-wrap">${preview}</div>
-  </div>`+el.innerHTML;
+  const urls=[
+    `https://api.golfcourseapi.com/v1/search?search_query=${encodeURIComponent(q)}`,
+    `https://api.golfcourseapi.com/v1/courses?search=${encodeURIComponent(q)}`,
+    `https://api.golfcourseapi.com/v1/clubs?search=${encodeURIComponent(q)}`,
+  ];
+  for(const url of urls){
+    try{
+      const {status,json}=await apiFetch(url);
+      if(json&&status===200){
+        const raw=extractCourses(json);
+        if(raw.length>0){setLoading(false);renderCrs(raw.map(normCourse));return}
+      }
+    }catch(e){}
+  }
+  setLoading(false);
+  showCMsg('No results found — try a different name');
 }
 function setLoading(on){document.getElementById('crs-loading').style.display=on?'block':'none'}
 function showCMsg(m){document.getElementById('crs-results').innerHTML=`<div style="color:var(--red);text-align:center;padding:10px;font-size:11px">${m}</div>`}
@@ -531,17 +570,30 @@ function renderCrs(courses){
   el.innerHTML='';
   courses.slice(0,15).forEach(c=>{
     const div=document.createElement('div');div.className='cri';
-    const hs=c.numberOfHoles||c.holes||18,dist=c.distance_miles?`${c.distance_miles.toFixed(1)} mi · `:'';
-    div.innerHTML=`<div class="cri-name">${c.clubName||c.courseName||'Unknown'}</div><div class="cri-det">${dist}${c.city||''}, ${c.state||''} · ${hs} holes</div>`;
+    const name=c.name||'Unknown Course';
+    const loc=[c.city,c.state].filter(Boolean).join(', ');
+    const distStr=(c.dist&&!isNaN(parseFloat(c.dist)))?`${parseFloat(c.dist).toFixed(1)} mi · `:'';
+    div.innerHTML=`<div class="cri-name">${name}</div><div class="cri-det">${distStr}${loc}${loc?' · ':''}${c.holes} holes</div>`;
     div.onclick=()=>selCrs(c);el.appendChild(div)
   })
 }
 async function selCrs(c){
-  let course={id:c.id||c.clubId||`${c.latitude}_${c.longitude}`,name:c.clubName||c.courseName||'Unknown',holes:c.numberOfHoles||c.holes||18,lat:parseFloat(c.latitude||c.lat||0),lon:parseFloat(c.longitude||c.lon||0),scorecard:null};
-  if(c.id||c.clubId){
-    try{const r=await fetch(`https://api.golfcourseapi.com/v1/courses/${c.id||c.clubId}`,{headers:{'Authorization':`Key ${API_KEY}`}});const d=await r.json();if(d.scorecard)course.scorecard=parseSC(d.scorecard,course.holes)}catch(e){}
+  // c is already normalized — use .name, .id, .lat, .lon, .holes
+  let course={id:c.id||`${c.lat}_${c.lon}`,name:c.name||'Unknown',holes:c.holes||18,lat:c.lat,lon:c.lon,scorecard:null};
+  if(c.id){
+    for(const url of [`https://api.golfcourseapi.com/v1/courses/${c.id}`,`https://api.golfcourseapi.com/v1/clubs/${c.id}`]){
+      try{
+        const {status,json}=await apiFetch(url);
+        if(json&&status===200){
+          const sc=json.scorecard||json.data?.scorecard||json.course?.scorecard;
+          if(sc){course.scorecard=parseSC(typeof sc==='string'?JSON.parse(sc):sc,course.holes);break}
+        }
+      }catch(e){}
+    }
   }
-  if(!course.scorecard&&c.scorecard){try{course.scorecard=parseSC(typeof c.scorecard==='string'?JSON.parse(c.scorecard):c.scorecard,course.holes)}catch(e){}}
+  if(!course.scorecard&&c.scorecard){
+    try{course.scorecard=parseSC(typeof c.scorecard==='string'?JSON.parse(c.scorecard):c.scorecard,course.holes)}catch(e){}
+  }
   S.course=course;S.holeNum=1;sC(course,1);updCBar();loadPinData();
   if(course.lat&&course.lon)map.setView([course.lat,course.lon],16);
   toggleCrs()
