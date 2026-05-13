@@ -830,7 +830,7 @@ function updTrack(){
 function mkRec(fd,fdir){return{id:Date.now().toString(),date:new Date().toLocaleDateString(),club:S.club.l,intD:S.dist,lat:S.lat,shape:S.shape,foundDist:fd,foundDir:fdir,flo:(fdir==='left'?-1:fdir==='right'?1:0)*Math.abs(fd-S.dist)*.2,delta:fd-S.dist,hH:S.holeBear!==null,hL:S.lmBear!==null,hole:S.course?S.holeNum:null,course:S.course?S.course.name:null}}
 function showFM(t){const el=document.getElementById('found-msg');el.textContent=t;setTimeout(()=>el.textContent='',3000)}
 function logGPS(){if(!S.curPos||!S.hitPt){showFM('⚠️ No GPS');return}const d=Math.round(hav(S.hitPt.lat,S.hitPt.lon,S.curPos.lat,S.curPos.lon));addShot(mkRec(d,S.foundDir));buildGrid();updHint();updSZ();showFM(`✅ Saved! ${d} yds`)}
-function logManual(){const v=parseInt(document.getElementById('found-dist').value);if(!v||v<1||v>400){showFM('⚠️ Enter a valid distance');return}addShot(mkRec(v,S.foundDir));document.getElementById('found-dist').value='';buildGrid();updHint();updSZ();showFM(`✅ Saved! ${v} yds`)}
+function logManual(){const v=parseInt(document.getElementById('found-dist').value);if(!v||v<1||v>400){showFM('⚠️ Enter actual distance in yards to save');return}addShot(mkRec(v,S.foundDir));document.getElementById('found-dist').value='';buildGrid();updHint();updSZ();showFM(`✅ Saved! ${v} yds`)}
 
 // UI builders
 function buildGrid(){
