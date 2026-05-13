@@ -475,25 +475,28 @@ function drawZones(){
 // Course API
 // Normalize raw API object to consistent field names regardless of API variant
 function normCourse(c, userLat, userLon){
-  const lat=parseFloat(c.latitude||c.lat||0);
-  const lon=parseFloat(c.longitude||c.lon||c.lng||0);
-  // Compute distance in miles from user if we have coords
-  let distMi=c.distance_miles||c.distance_miles_away||null;
-  if(!distMi && userLat && userLon && lat && lon){
+  // Location data is nested in c.location
+  const loc = c.location || {};
+  const lat = parseFloat(loc.latitude || c.latitude || c.lat || 0);
+  const lon = parseFloat(loc.longitude || c.longitude || c.lon || c.lng || 0);
+  // Compute distance in miles from user position
+  let distMi = null;
+  if(userLat && userLon && lat && lon){
     const R=3958.8, r=d=>d*Math.PI/180;
     const a=Math.sin(r(lat-userLat)/2)**2+Math.cos(r(userLat))*Math.cos(r(lat))*Math.sin(r(lon-userLon)/2)**2;
-    distMi=R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+    distMi = R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
   }
   return {
-    id:    c.id||c.club_id||c.clubId||c.course_id||c.courseId||null,
-    name:  c.club_name||c.clubName||c.course_name||c.courseName||c.name||null,
-    city:  c.city||null,
-    state: c.state||null,
-    address: c.address1||c.address||null,
-    holes: parseInt(c.number_of_holes||c.numberOfHoles||c.holes||18)||18,
+    id:      c.id || c.club_id || c.clubId || null,
+    name:    c.club_name || c.clubName || c.course_name || c.courseName || c.name || null,
+    address: loc.address || c.address1 || c.address || null,
+    city:    loc.city || c.city || null,
+    state:   loc.state || c.state || null,
+    country: loc.country || c.country || null,
+    holes:   parseInt(c.number_of_holes || c.numberOfHoles || c.holes || 18) || 18,
     lat, lon,
-    dist:  distMi!=null ? parseFloat(distMi) : null,
-    scorecard: c.scorecard||null,
+    dist:    distMi,
+    scorecard: c.scorecard || null,
   };
 }
 // Extract array of courses from any response shape
@@ -514,48 +517,92 @@ async function apiFetch(url){
   return {status:r.status,text,json};
 }
 async function nearbyC(){
-  setLoading(true);document.getElementById('crs-results').innerHTML='';
+  setLoading(true);
+  const el=document.getElementById('crs-results');
+  el.innerHTML='';
   if(!navigator.geolocation){showCMsg('GPS not available');return}
   navigator.geolocation.getCurrentPosition(async pos=>{
     const lat=pos.coords.latitude,lon=pos.coords.longitude;
-    // Try every known endpoint variant — show raw response for each attempt
-    const tries=[
-      `https://api.golfcourseapi.com/v1/courses/nearby?latitude=${lat}&longitude=${lon}`,
-      `https://api.golfcourseapi.com/v1/courses/nearby?lat=${lat}&lng=${lon}`,
-      `https://api.golfcourseapi.com/v1/courses?latitude=${lat}&longitude=${lon}`,
-      `https://api.golfcourseapi.com/v1/courses?lat=${lat}&lng=${lon}`,
-      `https://api.golfcourseapi.com/v1/search?search_query=golf&latitude=${lat}&longitude=${lon}`,
-    ];
-    const el=document.getElementById('crs-results');
-    el.innerHTML='';
-    setLoading(false);
-    for(const url of tries){
+
+    // Use OpenStreetMap Overpass API — free, no key, excellent local coverage
+    // Finds all golf courses within 30km radius
+    const radius=30000; // meters
+    const query=`[out:json][timeout:25];
+(
+  way["leisure"="golf_course"](around:${radius},${lat},${lon});
+  node["leisure"="golf_course"](around:${radius},${lat},${lon});
+  relation["leisure"="golf_course"](around:${radius},${lat},${lon});
+);
+out center tags;`;
+
+    try{
+      const resp=await fetch('https://overpass-api.de/api/interpreter',{
+        method:'POST',
+        body:'data='+encodeURIComponent(query)
+      });
+      const data=await resp.json();
+      const elements=data.elements||[];
+
+      if(elements.length===0){
+        setLoading(false);
+        showCMsg('No courses found nearby — try searching by name');
+        return;
+      }
+
+      // Normalize OSM elements into our course format
+      const courses=elements.map(e=>{
+        const eLat=e.lat||e.center?.lat||0;
+        const eLon=e.lon||e.center?.lon||0;
+        const R=3958.8,r=d=>d*Math.PI/180;
+        const a=Math.sin(r(eLat-lat)/2)**2+Math.cos(r(lat))*Math.cos(r(eLat))*Math.sin(r(eLon-lon)/2)**2;
+        const dist=R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+        const tags=e.tags||{};
+        return {
+          id:'osm_'+e.id,
+          name:tags.name||tags['name:en']||'Golf Course',
+          city:tags['addr:city']||null,
+          state:tags['addr:state']||null,
+          address:tags['addr:street']?tags['addr:housenumber']?tags['addr:housenumber']+' '+tags['addr:street']:tags['addr:street']:null,
+          holes:parseInt(tags.holes||18),
+          lat:eLat, lon:eLon,
+          dist,
+          scorecard:null,
+          osmId:e.id,
+        };
+      });
+
+      // Sort by distance
+      courses.sort((a,b)=>a.dist-b.dist);
+      setLoading(false);
+      renderCrs(courses);
+
+    }catch(e){
+      // Fallback to GolfCourseAPI if Overpass fails
       try{
-        const {status,text,json}=await apiFetch(url);
-        const preview=(text||'').slice(0,200);
-        const raw=json?extractCourses(json):[];
-        const statusColor=status===200?'#4ade80':'#f87171';
-        el.innerHTML+=`<div style="background:#0f1a12;border:1px solid #374151;border-radius:7px;padding:8px;font-size:9px;margin-bottom:5px;word-break:break-all">
-          <div style="color:${statusColor};font-weight:700">HTTP ${status} · ${raw.length} courses</div>
-          <div style="color:#6b7280;margin:2px 0">${url.replace('https://api.golfcourseapi.com','')}</div>
-          <div style="color:#9ca3af">${preview}</div>
-        </div>`;
-        if(json&&status===200&&raw.length>0){
-          showRawDebug(raw[0]);
-          renderCrs(raw.map(c=>normCourse(c,lat,lon)));
-          return;
+        const url=`https://api.golfcourseapi.com/v1/courses?latitude=${lat}&longitude=${lon}&limit=50`;
+        const {status,json}=await apiFetch(url);
+        if(json&&status===200){
+          const raw=extractCourses(json);
+          if(raw.length>0){
+            setLoading(false);
+            renderCrs(raw.map(c=>normCourse(c,lat,lon)));
+            return;
+          }
         }
-      }catch(e){
-        el.innerHTML+=`<div style="background:#0f1a12;border:1px solid #374151;border-radius:7px;padding:8px;font-size:9px;margin-bottom:5px;color:#f87171">
-          FETCH ERROR: ${e.message}
-        </div>`;
+        setLoading(false);
+        showCMsg('Could not load nearby courses — try searching by name');
+      }catch(e2){
+        setLoading(false);
+        showCMsg('Network error — try searching by name');
       }
     }
   },()=>{setLoading(false);showCMsg('GPS error — allow location access')},{enableHighAccuracy:true,timeout:12000});
 }
 async function searchC(){
   const q=document.getElementById('crs-input').value.trim();if(!q)return;
-  setLoading(true);document.getElementById('crs-results').innerHTML='';
+  setLoading(true);
+  const el=document.getElementById('crs-results');
+  el.innerHTML='';
   let uLat=null,uLon=null;
   if(S.curPos){uLat=S.curPos.lat;uLon=S.curPos.lon;}
   else if(navigator.geolocation){
@@ -564,35 +611,24 @@ async function searchC(){
       ()=>res(),{timeout:5000,enableHighAccuracy:false}
     ));
   }
-  // Only the /v1/search endpoint is confirmed working
   try{
     const url=`https://api.golfcourseapi.com/v1/search?search_query=${encodeURIComponent(q)}`;
     const {status,json}=await apiFetch(url);
+    setLoading(false);
     if(json&&status===200){
       const raw=extractCourses(json);
       if(raw.length>0){
-        showRawDebug(raw[0]);
-        setLoading(false);
-        renderCrs(raw.map(c=>normCourse(c,uLat,uLon)));
+        const normalized=raw.map(c=>normCourse(c,uLat,uLon));
+        normalized.sort((a,b)=>(a.dist??999)-(b.dist??999));
+        renderCrs(normalized);
         return;
       }
     }
-    setLoading(false);
-    showCMsg('No results — try a different spelling or nearby search');
+    showCMsg('No results — try a different spelling or use nearby search');
   }catch(e){
     setLoading(false);
     showCMsg('Search error: '+e.message);
   }
-}
-function showRawDebug(raw){
-  // Show raw field names and values of first result so we can fix field mapping
-  const fields=Object.entries(raw).map(([k,v])=>
-    `<span style="color:#fbbf24">${k}</span>: <span style="color:#e2e8f0">${JSON.stringify(v)}</span>`
-  ).join('<br>');
-  const el=document.getElementById('crs-results');
-  el.innerHTML=`<div style="background:#0f1a12;border:1px solid #854d0e;border-radius:8px;padding:10px;font-size:9px;color:#9ca3af;margin-bottom:8px;max-height:160px;overflow-y:auto;word-break:break-all">
-    <div style="font-weight:700;color:#fbbf24;margin-bottom:4px">🔍 Raw API fields (first result)</div>${fields}
-  </div>`+el.innerHTML;
 }
 function setLoading(on){document.getElementById('crs-loading').style.display=on?'block':'none'}
 function showCMsg(m){document.getElementById('crs-results').innerHTML=`<div style="color:var(--red);text-align:center;padding:10px;font-size:11px">${m}</div>`}
@@ -604,14 +640,14 @@ function renderCrs(courses){
     if(a.dist!=null&&b.dist!=null)return a.dist-b.dist;
     if(a.dist!=null)return -1; if(b.dist!=null)return 1; return 0;
   });
-  sorted.slice(0,15).forEach(c=>{
+  sorted.slice(0,20).forEach(c=>{
     const div=document.createElement('div');div.className='cri';
-    const name=c.name||'—';
+    const name=c.name||'Unknown Course';
     const cityState=[c.city,c.state].filter(Boolean).join(', ');
-    const addrLine=c.address?(c.address+(cityState?', '+cityState:'')):cityState;
-    const distPart=(c.dist!=null&&!isNaN(c.dist))?'<span style="color:var(--bright);font-weight:700">'+c.dist.toFixed(1)+' mi</span>&nbsp;&middot;&nbsp;':'';
-    const holesTag=addrLine?' &middot; '+c.holes+' holes':c.holes+' holes';
-    div.innerHTML='<div class="cri-name">'+name+'</div><div class="cri-det">'+distPart+(addrLine||'')+holesTag+'</div>';
+    const distPart=(c.dist!=null)?'<span style="color:var(--bright);font-weight:700">'+c.dist.toFixed(1)+' mi</span>&nbsp;&middot;&nbsp;':'';
+    const addrPart=cityState||'';
+    div.innerHTML='<div class="cri-name">'+name+'</div>'
+      +'<div class="cri-det">'+distPart+addrPart+(addrPart?'&nbsp;&middot;&nbsp;':'')+c.holes+' holes</div>';
     div.onclick=()=>selCrs(c);el.appendChild(div);
   });
 }
