@@ -868,13 +868,13 @@ function reset(){
   // Clear all map layers
   [mHit,mPos,mLM,eStd,eSm,eHole,eLM,lBear,lAim,lFW].forEach(l=>{if(l)l.remove()});
   mHit=mPos=mLM=eStd=eSm=eHole=eLM=lBear=lAim=lFW=null;
-  if(mPin){mPin.remove();mPin=null;}
+  // mPin intentionally kept — hole pin persists across shots on same hole
   // Reset state, preserve course/hole
   S={...S,phase:'setup',hitPt:null,zone:null,smartZone:null,watchId:null,
     gpsOk:false,curPos:null,smartOn:false,
     lm:null,lmBear:null,lmTap:false,compBear:null,pinTap:false,holeBear:null};
-  // Reload saved pin for current hole
-  if(S.course) loadPinData();
+  // Restore pin marker on map if we have a saved pin (state preserved above)
+  if(S.holePinLL&&!mPin) placePin(S.holePinLL.lat,S.holePinLL.lon);
   // Panels
   document.getElementById('track').classList.add('hid');
   document.getElementById('setup').classList.remove('hid');
